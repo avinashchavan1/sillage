@@ -14,6 +14,60 @@ A personal fragrance-collection tracker that learns your taste.
 - **Predict before you buy.** Every lookup and wishlist item gets a match score ("85% — very likely your style"), along with the notes driving it.
 - **AI scent profile (optional).** Claude explains your taste in plain words, recommends what to try next and what to skip, and points out gaps in your collection.
 
+## AI platform
+
+Sillage stores your collection and exposes it to any AI. Other AI apps can query it, analyse it and publish their
+findings back into the app.
+
+```
+            ┌──────────── Sillage server ───────────────┐
+ Claude ───►│ /mcp   MCP server (Streamable HTTP)       │
+ ChatGPT ──►│ /api   REST + OpenAPI (/docs)             │──► SQLite: collection, wears, insights
+ Cursor ───►│ stdio  python -m app.mcp_server (local)   │
+ scripts ──►│ one shared tool registry (app/tools.py)   │◄── web app: Ask Sillage chat + Insights feed
+            └───────────────────────────────────────────┘
+```
+
+- **14 tools**, each one written once (in `app/tools.py`) and served over MCP, over REST (`POST /api/tools/{name}`) and to the
+  in-app assistant:
+  - **Read:** `collection_overview`, `search_fragrances`, `get_fragrance`, `taste_profile`, `wear_history`,
+    `query_database` (read-only SQL with documented views), `evaluate_fragrance` ("would I like X?" for fragrances you
+    don't own), `similar_fragrances`, `suggest_what_to_wear` (weather- and occasion-aware), `list_insights`.
+  - **Write:** `add_fragrance`, `update_fragrance`, `log_wear`, and `publish_insight`, which pushes a finding with a
+    bar, diverging, line or table chart into the app's **AI insights** feed.
+- **Ask Sillage** (the **✦ Ask AI** tab) is a streaming Claude agent using the same tools. It shows each step it takes, and any
+  answer can be saved to your insights.
+- **MCP extras:** read-only/write hints on every tool, `sillage://schema` and `sillage://taste-profile` resources,
+  and `analyze-my-taste` and `what-to-wear` prompts.
+- **Security:**
+  - Every `/api` and `/mcp` call needs your key (`Authorization: Bearer …`, `X-API-Key`, or `?key=` for connector UIs that
+    can't send headers).
+  - SQL runs on a read-only connection, one statement at a time, with a 3-second / 500-row budget.
+  - On your own computer the web app picks up the key automatically. Once deployed, it asks you for it.
+
+The **Connect** tab shows copy-paste setup for each client, with your real key filled in:
+
+```bash
+# Claude Code
+claude mcp add --transport http sillage http://127.0.0.1:8000/mcp --header "Authorization: Bearer <key>"
+```
+
+Claude Desktop and Cursor run the local stdio server (`python -m app.mcp_server`); the Connect tab gives you the exact
+JSON to paste. claude.ai and ChatGPT connectors and Custom GPT Actions need a public HTTPS URL (see Deploy).
+
+## Deploy (for web AI apps)
+
+```bash
+fly launch --no-deploy --copy-config
+fly volumes create sillage_data --size 1
+fly secrets set ANTHROPIC_API_KEY=sk-ant-... SILLAGE_PUBLIC_URL=https://<your-app>.fly.dev SILLAGE_ALLOWED_HOSTS=<your-app>.fly.dev
+fly deploy
+fly logs   # the API key is printed at startup
+```
+
+The `Dockerfile` also works on any container host (Render, Railway, a VPS). Mount a volume at `/data`, and set
+`SILLAGE_PUBLIC_URL` and `SILLAGE_ALLOWED_HOSTS`.
+
 ## Run it
 
 ```bash
@@ -71,6 +125,9 @@ You can change the source order with `SILLAGE_LOOKUP_ORDER`, e.g. `claude,fragra
 | `SILLAGE_MODEL` | `claude-opus-5-5` | Claude model |
 | `SILLAGE_AI` | `on` | `off` disables all Claude calls |
 | `SILLAGE_HEMISPHERE` | `north` | `south` flips the seasons |
+| `SILLAGE_API_KEY` | generated into `data/api_key` | Key for `/api` and `/mcp` |
+| `SILLAGE_PUBLIC_URL` | — | Public HTTPS base URL once deployed (turns off key auto-pickup) |
+| `SILLAGE_ALLOWED_HOSTS` | — | Extra Host names the MCP endpoint accepts, comma-separated |
 
 ## Development
 
@@ -79,4 +136,4 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-Layout: `app/main.py` (API), `app/db.py` (SQLite), `app/lookup/` (Fragrantica + Claude providers), `app/insights.py` (taste model), `app/ai_profile.py`, `app/static/` (frontend: vanilla JS, no build step).
+Layout: `app/main.py` (API + MCP mount), `app/tools.py` (the tool registry), `app/mcp_server.py`, `app/assistant.py` (Ask Sillage), `app/auth.py`, `app/db.py` (SQLite + read-only SQL), `app/lookup/` (Fragrantica + Claude providers), `app/insights.py` (taste model), `app/recommend.py` (similarity + wear suggestions), `app/static/` (frontend: vanilla JS, no build step).

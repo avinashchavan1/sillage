@@ -1,0 +1,20 @@
+# Deploy with: fly launch --no-deploy --copy-config && fly volumes create sillage_data --size 1 && fly deploy
+app = "sillage"
+primary_region = "iad"
+
+[build]
+
+[env]
+  SILLAGE_DB = "/data/sillage.db"
+  SILLAGE_BOOTSTRAP = "off"
+
+[mounts]
+  source = "sillage_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0

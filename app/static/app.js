@@ -63,10 +63,24 @@ const listText = (arr) => (arr || []).join(", ");
 const parseList = (s) => String(s || "").split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
 const signed = (n) => (n > 0 ? "+" : "") + Number(n).toFixed(2);
 
+let API_KEY = null;
+async function ensureKey() {
+  if (API_KEY) return API_KEY;
+  API_KEY = store.get("sillage-key");
+  if (!API_KEY) {
+    const boot = await fetch("/bootstrap").then((r) => r.json()).catch(() => ({}));
+    if (boot.api_key) { API_KEY = boot.api_key; store.set("sillage-key", API_KEY); }
+  }
+  return API_KEY;
+}
+const authHeaders = () => (API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {});
+
 async function api(path, opts = {}) {
-  const init = { ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) } };
+  await ensureKey();
+  const init = { ...opts, headers: { "Content-Type": "application/json", ...authHeaders(), ...(opts.headers || {}) } };
   if (init.body && typeof init.body !== "string") init.body = JSON.stringify(init.body);
   const res = await fetch(path, init);
+  if (res.status === 401) { showLogin(); throw Object.assign(new Error("Enter your Sillage key"), { status: 401 }); }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     const det = data.detail;
@@ -209,7 +223,7 @@ function readSentiment(form, name) {
 
 /* ================================================================ router */
 
-const views = { collection: renderCollection, add: renderAdd, wear: renderWear, insights: renderInsights };
+const views = { collection: renderCollection, add: renderAdd, wear: renderWear, insights: renderInsights, ai: renderAI, connect: renderConnect };
 function route() {
   const name = (location.hash.slice(1).split("?")[0] || "collection");
   const view = views[name] ? name : "collection";
@@ -406,6 +420,7 @@ function detailView(f) {
         <p class="small subtle" style="margin:10px 0 0">Blue/red outlines mark notes you tend to love/avoid.</p></div>
     </div>
     ${f.description ? `<p class="subtle small" style="margin:0">${esc(f.description)}</p>` : ""}
+    ${f.similar?.length ? `<div class="card"><h3>Similar in your collection</h3><ul class="list">${f.similar.map((x) => `<li><span class="link" data-open-similar="${x.id}">${esc(x.name)} <span class="subtle small">${esc(x.brand || "")}</span></span><span class="num" title="Shares: ${esc(x.shared.join(", "))}">${Math.round(x.similarity * 100)}% alike</span></li>`).join("")}</ul></div>` : ""}
 
     <div class="card">
       <div class="card-head"><h3>Wear history</h3><span class="subtle small">${f.wear_count} wear${f.wear_count === 1 ? "" : "s"}</span></div>
@@ -480,6 +495,7 @@ function wireDetail(f) {
   const body = $("#detail-body");
   const dlg = $("#detail");
   $$("[data-close]", body).forEach((b) => (b.onclick = () => dlg.close()));
+  $$("[data-open-similar]", body).forEach((el) => (el.onclick = () => openDetail(Number(el.dataset.openSimilar))));
 
   const personal = $("#personal", body);
   if (personal) {
@@ -984,6 +1000,315 @@ function wireAi(root) {
       btn.disabled = false;
       btn.textContent = "Generate AI profile";
     }
+  };
+}
+
+/* ================================================================ AI: markdown + charts */
+
+// Small, safe Markdown renderer: everything is escaped first, then a few constructs are re-enabled.
+function md(src) {
+  const blocks = String(src || "").replace(/\r/g, "").split(/\n{2,}/);
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  return blocks.map((b) => {
+    if (/^```/.test(b)) return `<pre><code>${esc(b.replace(/^```\w*\n?|```$/g, ""))}</code></pre>`;
+    const lines = b.split("\n");
+    if (/^#{1,4}\s/.test(b)) {
+      const [h, ...rest] = lines;
+      const lvl = Math.min(4, h.match(/^#+/)[0].length + 2);
+      return `<h${lvl}>${inline(h.replace(/^#+\s*/, ""))}</h${lvl}>${rest.length ? md(rest.join("\n")) : ""}`;
+    }
+    if (lines.every((l) => /^\s*[-*•]\s+/.test(l) || !l.trim()))
+      return `<ul>${lines.filter((l) => l.trim()).map((l) => `<li>${inline(l.replace(/^\s*[-*•]\s+/, ""))}</li>`).join("")}</ul>`;
+    if (lines.every((l) => /^\s*\d+[.)]\s+/.test(l) || !l.trim()))
+      return `<ol>${lines.filter((l) => l.trim()).map((l) => `<li>${inline(l.replace(/^\s*\d+[.)]\s+/, ""))}</li>`).join("")}</ol>`;
+    if (lines.length > 1 && lines.every((l) => /^\s*\|/.test(l))) {
+      const rows = lines.filter((l) => !/^\s*\|[\s:|-]+\|\s*$/.test(l)).map((l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim()));
+      const [head, ...body] = rows;
+      return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    }
+    return `<p>${lines.map(inline).join("<br>")}</p>`;
+  }).join("");
+}
+
+function chartView(c) {
+  if (!c) return "";
+  const title = c.title ? `<div class="small subtle" style="margin-bottom:6px">${esc(c.title)}</div>` : "";
+  const unit = c.unit ? (c.unit === "%" ? "%" : ` ${c.unit}`) : "";
+  const fmt = (v) => (Math.abs(v) >= 100 || Number.isInteger(v) ? String(Math.round(v * 10) / 10) : v.toFixed(2)) + unit;
+  if (c.type === "table") {
+    return title + `<div class="tbl-wrap"><table class="tbl"><thead><tr>${c.columns.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
+      <tbody>${c.rows.map((r) => `<tr>${r.map((v) => `<td class="${typeof v === "number" ? "num" : ""}">${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }
+  if (c.type === "line") {
+    const W = 560, H = 160, P = 24, n = c.values.length;
+    const max = Math.max(...c.values), min = Math.min(0, ...c.values), span = max - min || 1;
+    const x = (i) => P + (n === 1 ? (W - 2 * P) / 2 : (i * (W - 2 * P)) / (n - 1));
+    const y = (v) => H - P - ((v - min) / span) * (H - 2 * P);
+    const pts = c.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const peak = c.values.indexOf(max);
+    return title + `<svg class="line-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.title || "trend")}">
+      <line x1="${P}" y1="${H - P}" x2="${W - P}" y2="${H - P}" class="axis-line"/>
+      <polygon points="${x(0)},${H - P} ${pts} ${x(n - 1)},${H - P}" class="area"/>
+      <polyline points="${pts}" class="trend"/>
+      ${c.values.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${i === peak ? 5 : 3.5}" class="pt" data-tip="${esc(`${c.labels[i]}: ${fmt(v)}`)}"/>`).join("")}
+      <text x="${x(peak)}" y="${y(max) - 10}" text-anchor="middle" class="lbl">${esc(fmt(max))}</text>
+      <text x="${P}" y="${H - 6}" class="lbl">${esc(c.labels[0])}</text>
+      <text x="${W - P}" y="${H - 6}" text-anchor="end" class="lbl">${esc(c.labels[n - 1])}</text></svg>`;
+  }
+  const max = Math.max(...c.values.map(Math.abs), 1e-9);
+  if (c.type === "diverging") {
+    return title + `<div class="legend"><span><span class="sw" style="background:var(--neg)"></span>Negative</span><span><span class="sw" style="background:var(--pos)"></span>Positive</span></div>
+      <div class="div-chart">${c.labels.map((l, i) => { const v = c.values[i], pct = Math.round((Math.abs(v) / max) * 100);
+        return `<div class="div-row" data-tip="${esc(`${l}: ${fmt(v)}`)}"><span class="lbl">${esc(l)}</span><span class="neg-half">${v < 0 ? `<span class="bar" style="width:${pct}%"></span>` : ""}</span><span class="pos-half">${v > 0 ? `<span class="bar" style="width:${pct}%"></span>` : ""}</span><span class="val">${esc(fmt(v))}</span></div>`; }).join("")}</div>`;
+  }
+  return title + `<div class="hbars">${c.labels.map((l, i) => `<div class="hbar" data-tip="${esc(`${l}: ${fmt(c.values[i])}`)}"><span class="lbl">${esc(l)}</span><span class="track"><span class="bar" style="width:${Math.max(2, Math.round((Math.abs(c.values[i]) / max) * 100))}%"></span></span><span class="val">${esc(fmt(c.values[i]))}</span></div>`).join("")}</div>`;
+}
+
+/* ================================================================ AI: chat + feed */
+
+const TOOL_LABELS = {
+  collection_overview: () => "Looked over your collection", search_fragrances: (i) => `Searched your collection${i.note ? ` for ${i.note}` : i.text ? ` for “${i.text}”` : ""}`,
+  get_fragrance: () => "Opened a fragrance", taste_profile: () => "Read your taste profile", wear_history: () => "Checked your wear log",
+  query_database: () => "Ran an analysis query", evaluate_fragrance: (i) => `Looked up ${i.name || "a fragrance"} online`,
+  similar_fragrances: () => "Compared scent profiles", suggest_what_to_wear: () => "Picked what to wear", list_insights: () => "Read your insights",
+  add_fragrance: (i) => `Added ${i.name || "a fragrance"}`, update_fragrance: () => "Updated a fragrance", log_wear: () => "Logged a wear",
+  publish_insight: (i) => `Published “${i.title || "an insight"}” to your feed`,
+};
+const WRITE_TOOLS = new Set(["add_fragrance", "update_fragrance", "log_wear", "publish_insight"]);
+const PROMPTS = [
+  "What notes do I love, and which bottles prove it?",
+  "Pick something for a cold-weather date tonight",
+  "Would I like Parfums de Marly Layton?",
+  "Which bottles am I neglecting, and which should I sell?",
+  "Chart my wears per month and publish it to my insights",
+  "What gaps does my collection have?",
+];
+const chat = { messages: [], busy: false, ctl: null };
+try { chat.messages = JSON.parse(store.get("sillage-chat") || "[]"); } catch { chat.messages = []; }
+const saveChat = () => store.set("sillage-chat", JSON.stringify(chat.messages.slice(-30).map(({ role, content }) => ({ role, content }))));
+
+async function renderAI() {
+  const root = $("#view-ai");
+  if (!state.status) state.status = await api("/api/status").catch(() => ({}));
+  if (!root.dataset.ready) {
+    root.dataset.ready = "1";
+    root.innerHTML = `
+      <div class="view-head"><div><h1>Ask Sillage</h1><div class="subtle">An AI that knows your whole collection, your ratings and every wear. It can also save what it finds.</div></div>
+        <div class="row"><a class="btn" href="#connect">Connect another AI</a><button class="ghost" id="chat-new">New chat</button></div></div>
+      <div class="ai-layout">
+        <section class="card chat-card" aria-label="Chat">
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+          <form id="chat-form" class="chat-form">
+            <textarea id="chat-input" rows="1" placeholder="Ask about your fragrances…" aria-label="Message"></textarea>
+            <button class="primary" type="submit" id="chat-send">Send</button>
+          </form>
+          <div id="chat-off" class="notice small" hidden>The assistant needs an Anthropic API key on the server: set <code>ANTHROPIC_API_KEY</code> and restart. Other AI apps can still use your data from the <a href="#connect">Connect</a> page.</div>
+        </section>
+        <section aria-label="AI insights">
+          <div class="card-head"><h2>AI insights</h2><span class="small subtle" id="feed-count"></span></div>
+          <div id="feed"></div>
+        </section>
+      </div>`;
+    $("#chat-form").onsubmit = (e) => { e.preventDefault(); sendChat($("#chat-input").value); };
+    $("#chat-input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(e.target.value); } });
+    $("#chat-input").addEventListener("input", (e) => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 180) + "px"; });
+    $("#chat-new").onclick = () => { chat.ctl?.abort(); chat.messages = []; saveChat(); drawChat(); };
+    $("#chat-log").addEventListener("click", onChatClick);
+    $("#feed").addEventListener("click", onFeedClick);
+  }
+  const off = !state.status?.ai_available;
+  $("#chat-off").hidden = !off;
+  $("#chat-send").disabled = off;
+  drawChat();
+  drawFeed();
+}
+
+function drawChat() {
+  const log = $("#chat-log");
+  if (!log) return;
+  if (!chat.messages.length) {
+    log.innerHTML = `<div class="chat-empty"><div class="spark" aria-hidden="true">✦</div><h3>What would you like to know?</h3>
+      <div class="chips">${PROMPTS.map((p) => `<button type="button" class="chip prompt" data-prompt="${esc(p)}">${esc(p)}</button>`).join("")}</div></div>`;
+    return;
+  }
+  log.innerHTML = chat.messages.map((m, i) => m.role === "user"
+    ? `<div class="msg user"><div class="bubble">${esc(m.content)}</div></div>`
+    : `<div class="msg bot">
+        ${(m.steps || []).length ? `<div class="steps">${m.steps.map((s) => `<details class="step ${s.done ? (s.ok ? "ok" : "bad") : "run"}"><summary>${s.done ? (s.ok ? "✓" : "!") : '<span class="spinner tiny"></span>'} ${esc(s.label)}</summary><pre>${esc(JSON.stringify(s.input, null, 2))}${s.preview ? "\n→ " + esc(s.preview) : ""}</pre></details>`).join("")}</div>` : ""}
+        <div class="bubble md">${m.content ? md(m.content) : m.error ? "" : `<span class="thinking">Thinking<span>.</span><span>.</span><span>.</span></span>`}</div>
+        ${m.error ? `<div class="notice err small">${esc(m.error)}</div>` : ""}
+        ${m.content && !m.streaming ? `<div class="msg-actions"><button class="small ghost" data-save="${i}">Save to insights</button><button class="small ghost" data-copy="${i}">Copy</button></div>` : ""}
+      </div>`).join("");
+  log.scrollTop = log.scrollHeight;
+}
+
+function onChatClick(e) {
+  const p = e.target.closest("[data-prompt]");
+  if (p) return sendChat(p.dataset.prompt);
+  const s = e.target.closest("[data-save]");
+  if (s) return saveAnswer(Number(s.dataset.save), s);
+  const c = e.target.closest("[data-copy]");
+  if (c) copyText(chat.messages[Number(c.dataset.copy)].content);
+}
+
+async function saveAnswer(i, btn) {
+  const answer = chat.messages[i], question = chat.messages[i - 1]?.content || "Ask Sillage";
+  const plain = answer.content.replace(/[#*_`>|]/g, "").replace(/\s+/g, " ").trim();
+  btn.disabled = true;
+  try {
+    await api("/api/feed", { method: "POST", headers: { "X-Client-Name": "Ask Sillage" },
+      body: { title: question.slice(0, 118), summary: plain.slice(0, 280) + (plain.length > 280 ? "…" : ""), body_markdown: answer.content } });
+    toast("Saved to your insights");
+    drawFeed();
+  } catch (err) { toast(err.message, { error: true }); btn.disabled = false; }
+}
+
+async function sendChat(text) {
+  text = String(text || "").trim();
+  if (!text || chat.busy || !state.status?.ai_available) return;
+  $("#chat-input").value = ""; $("#chat-input").style.height = "auto";
+  chat.messages.push({ role: "user", content: text });
+  const bot = { role: "assistant", content: "", steps: [], streaming: true };
+  chat.messages.push(bot);
+  chat.busy = true; chat.ctl = new AbortController();
+  const send = $("#chat-send");
+  send.textContent = "Stop"; send.type = "button"; send.onclick = () => chat.ctl.abort();
+  drawChat();
+  let wrote = false, redraw = 0;
+  const history = chat.messages.slice(0, -1).filter((m) => m.content).slice(-20).map(({ role, content }) => ({ role, content }));
+  try {
+    await ensureKey();
+    const res = await fetch("/api/chat", { method: "POST", signal: chat.ctl.signal, headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ messages: history }) });
+    if (res.status === 401) { showLogin(); throw new Error("Enter your Sillage key"); }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(typeof d.detail === "string" ? d.detail : res.statusText); }
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, idx).replace(/^data: /, ""); buf = buf.slice(idx + 2);
+        if (!line.trim()) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "text") bot.content += ev.delta;
+        else if (ev.type === "tool") bot.steps.push({ id: ev.id, name: ev.name, input: ev.input, label: (TOOL_LABELS[ev.name] || (() => ev.name))(ev.input || {}) });
+        else if (ev.type === "tool_result") { const st = bot.steps.find((x) => x.id === ev.id); if (st) Object.assign(st, { done: true, ok: ev.ok, preview: ev.preview }); if (ev.ok && WRITE_TOOLS.has(ev.name)) wrote = true; }
+        else if (ev.type === "error") bot.error = ev.message;
+      }
+      const now = Date.now();
+      if (now - redraw > 60) { drawChat(); redraw = now; }
+    }
+  } catch (err) {
+    if (err.name !== "AbortError") bot.error = err.message || "Something went wrong";
+  } finally {
+    bot.streaming = false; chat.busy = false;
+    send.textContent = "Send"; send.type = "submit"; send.onclick = null;
+    if (!bot.content && !bot.error) bot.error = "Stopped.";
+    saveChat(); drawChat();
+    if (wrote) { state.insights = null; drawFeed(); }
+  }
+}
+
+async function drawFeed() {
+  const box = $("#feed");
+  if (!box) return;
+  let items;
+  try { items = await api("/api/feed"); } catch { return; }
+  $("#feed-count").textContent = items.length ? `${items.length} saved` : "";
+  if (!items.length) {
+    box.innerHTML = `<div class="card empty small"><p><b>Nothing here yet.</b></p><p class="subtle">Insights appear here when you save an answer, when Ask Sillage publishes one, or when another AI app (Claude, ChatGPT, Cursor…) publishes through your Sillage connection.</p></div>`;
+    return;
+  }
+  const names = new Map(state.fragrances.map((f) => [f.id, f.name]));
+  box.innerHTML = items.map((it) => `<article class="card insight ${it.pinned ? "pinned" : ""}">
+    <div class="insight-meta"><span class="pill src">${esc(it.source)}</span><span class="small subtle">${esc(fmtDate(it.created_at.slice(0, 10)))}</span>${it.pinned ? `<span class="pill match">Pinned</span>` : ""}
+      <span class="insight-actions"><button class="ghost small" data-pin="${it.id}" data-pinned="${it.pinned ? 1 : 0}" title="${it.pinned ? "Unpin" : "Pin to top"}">${it.pinned ? "Unpin" : "Pin"}</button><button class="ghost small" data-del-insight="${it.id}" aria-label="Delete insight">✕</button></span></div>
+    <h3>${esc(it.title)}</h3>
+    <p class="insight-summary">${esc(it.summary)}</p>
+    ${it.chart ? `<div class="insight-chart">${chartView(it.chart)}</div>` : ""}
+    ${it.body ? `<details class="insight-body"><summary>Read the full analysis</summary><div class="md">${md(it.body)}</div></details>` : ""}
+    ${it.fragrance_ids?.length ? `<div class="chips" style="margin-top:8px">${it.fragrance_ids.filter((id) => names.has(id)).map((id) => `<button class="chip linkchip" data-open-frag="${id}">${esc(names.get(id))}</button>`).join("")}</div>` : ""}
+  </article>`).join("");
+}
+
+async function onFeedClick(e) {
+  const pin = e.target.closest("[data-pin]");
+  if (pin) { await api(`/api/feed/${pin.dataset.pin}`, { method: "PATCH", body: { pinned: pin.dataset.pinned !== "1" } }); return drawFeed(); }
+  const del = e.target.closest("[data-del-insight]");
+  if (del) { if (!confirm("Delete this insight?")) return; await api(`/api/feed/${del.dataset.delInsight}`, { method: "DELETE" }); return drawFeed(); }
+  const f = e.target.closest("[data-open-frag]");
+  if (f) openDetail(Number(f.dataset.openFrag));
+}
+
+/* ================================================================ connect */
+
+function copyText(text) {
+  const p = navigator.clipboard?.writeText(text) || Promise.reject(new Error("no clipboard"));
+  p.then(() => toast("Copied"), () => toast("Couldn't copy. Select the text and copy it instead.", { error: true }));
+}
+
+function copyBlock(label, text, note = "") {
+  return `<div class="snippet"><div class="row between"><b class="small">${esc(label)}</b><button class="small" data-copy-text="${esc(text)}">Copy</button></div>
+    <pre>${esc(text)}</pre>${note ? `<p class="small subtle">${note}</p>` : ""}</div>`;
+}
+
+async function renderConnect() {
+  const root = $("#view-connect");
+  root.innerHTML = `<div class="loading"><span class="spinner"></span>Loading connection details…</div>`;
+  let c;
+  try { c = await api("/api/connect"); } catch (err) { root.innerHTML = `<div class="notice err">${esc(err.message)}</div>`; return; }
+  const k = c.api_key, masked = k.slice(0, 14) + "•".repeat(12);
+  const desktop = JSON.stringify({ mcpServers: { sillage: { command: c.python, args: ["-m", "app.mcp_server"], env: { PYTHONPATH: c.project_dir } } } }, null, 2);
+  root.innerHTML = `
+    <div class="view-head"><div><h1>Connect your AI</h1><div class="subtle">Let Claude, ChatGPT, Cursor or any agent read your collection, run analyses and publish the results back into Sillage.</div></div></div>
+    <div class="connect-grid">
+      <div class="card">
+        <h3>Your key</h3>
+        <p class="small subtle">Every request needs it. Treat it like a password.</p>
+        <div class="keybox"><code id="key-text">${esc(masked)}</code><button class="small" id="key-show">Show</button><button class="small" data-copy-text="${esc(k)}">Copy</button></div>
+        <dl class="kv"><dt>MCP endpoint</dt><dd><code>${esc(c.mcp_url)}</code></dd><dt>REST API</dt><dd><code>${esc(c.base_url)}/api</code> · <a href="/docs" target="_blank" rel="noopener">interactive docs ↗</a></dd><dt>OpenAPI</dt><dd><code>${esc(c.openapi_url)}</code></dd></dl>
+        ${c.public ? `<div class="notice small">Public URL configured, so cloud apps (claude.ai, ChatGPT) can reach this server.</div>` : `<div class="notice warn small">This server is only reachable from this computer. Desktop apps work now. For claude.ai or ChatGPT on the web, deploy it with a public HTTPS URL (see the README) and set <code>SILLAGE_PUBLIC_URL</code>.</div>`}
+      </div>
+      <div class="card">
+        <h3>Tools your AI gets</h3>
+        <ul class="list tool-list">${c.tools.map((t) => `<li><span><code>${esc(t.name)}</code><br><span class="small subtle">${esc(t.summary)}</span></span><span class="pill ${t.read_only ? "" : "write"}">${t.read_only ? "read" : "write"}</span></li>`).join("")}</ul>
+      </div>
+    </div>
+    <div class="stack-gap">
+      <div class="card"><h3>Claude Code</h3>${copyBlock("Terminal", `claude mcp add --transport http sillage ${c.mcp_url} --header "Authorization: Bearer ${k}"`)}</div>
+      <div class="card"><h3>Claude Desktop, Cursor and other desktop apps</h3>${copyBlock("Add to the app's MCP config (claude_desktop_config.json for Claude Desktop)", desktop, "Runs Sillage's MCP server locally over stdio against the same database. No key needed, because it never leaves your computer.")}</div>
+      <div class="card"><h3>claude.ai and ChatGPT (web connectors)</h3>${copyBlock("Connector URL", `${c.mcp_url}/?key=${k}`, c.public ? "Add it as a custom connector (claude.ai: Settings → Connectors; ChatGPT: Settings → Connectors). The key is in the URL because these apps can't send custom headers, so keep the URL private." : "Needs a public HTTPS deployment first. Once you set SILLAGE_PUBLIC_URL, this URL becomes reachable.")}</div>
+      <div class="card"><h3>Custom GPT (ChatGPT Actions)</h3>${copyBlock("Import schema from URL", c.openapi_url, "In the GPT editor: Actions → Import from URL. Authentication: API Key, Auth Type Bearer, paste your key.")}</div>
+      <div class="card"><h3>Any app or script (REST)</h3>
+        ${copyBlock("Ask the taste model", `curl -s ${c.base_url}/api/tools/taste_profile -H "Authorization: Bearer ${k}" -H "Content-Type: application/json" -d '{}'`)}
+        ${copyBlock("Run your own analysis", `curl -s ${c.base_url}/api/sql -H "Authorization: Bearer ${k}" -H "Content-Type: application/json" -d '{"sql": "SELECT note_key(note) AS note, ROUND(AVG(rating),2) AS avg_rating, COUNT(*) AS n FROM v_notes WHERE rating IS NOT NULL GROUP BY 1 HAVING n >= 2 ORDER BY 2 DESC LIMIT 10"}'`)}
+        ${copyBlock("Publish a result into the app", `curl -s ${c.base_url}/api/feed -H "Authorization: Bearer ${k}" -H "X-Client-Name: My script" -H "Content-Type: application/json" -d '{"title": "Top notes", "summary": "Vanilla and tonka lead.", "chart": {"type": "bar", "labels": ["Vanilla", "Tonka"], "values": [1.9, 1.7]}}'`)}
+      </div>
+    </div>`;
+  $("#key-show").onclick = (e) => { const shown = e.target.textContent === "Hide"; $("#key-text").textContent = shown ? masked : k; e.target.textContent = shown ? "Show" : "Hide"; };
+  $$("[data-copy-text]", root).forEach((b) => (b.onclick = () => copyText(b.dataset.copyText)));
+}
+
+/* ================================================================ login */
+
+function showLogin() {
+  const box = $("#login");
+  if (!box.hidden) return;
+  store.set("sillage-key", "");
+  API_KEY = null;
+  box.hidden = false;
+  $("#login-key").focus();
+  $("#login-form").onsubmit = (e) => {
+    e.preventDefault();
+    API_KEY = $("#login-key").value.trim();
+    store.set("sillage-key", API_KEY);
+    box.hidden = true;
+    route();
   };
 }
 

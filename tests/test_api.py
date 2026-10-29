@@ -36,7 +36,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(fragrantica, "lookup", fake_lookup)
     from app.main import app
 
-    return TestClient(app)
+    with TestClient(app, headers={"Authorization": "Bearer test-key"}) as c:
+        yield c
 
 
 def test_lookup_preview_and_save_flow(client):

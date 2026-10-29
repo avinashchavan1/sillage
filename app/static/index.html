@@ -21,6 +21,8 @@
       <a href="#add" data-view="add">Add</a>
       <a href="#wear" data-view="wear">Wear log</a>
       <a href="#insights" data-view="insights">Insights</a>
+      <a href="#ai" data-view="ai" class="ai-tab">✦ Ask AI</a>
+      <a href="#connect" data-view="connect">Connect</a>
     </nav>
     <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>
   </header>
@@ -30,11 +32,21 @@
     <section id="view-add" class="view" hidden></section>
     <section id="view-wear" class="view" hidden></section>
     <section id="view-insights" class="view" hidden></section>
+    <section id="view-ai" class="view" hidden></section>
+    <section id="view-connect" class="view" hidden></section>
   </main>
 
   <dialog id="detail" aria-label="Fragrance details"><div id="detail-body"></div></dialog>
   <div id="tooltip" role="tooltip" hidden></div>
   <div id="toasts" aria-live="polite"></div>
+  <div id="login" hidden>
+    <form class="card login-card" id="login-form">
+      <h2>Unlock Sillage</h2>
+      <p class="subtle small">Paste your Sillage API key. It's printed when the server starts and saved in <code>data/api_key</code>.</p>
+      <input id="login-key" name="key" autocomplete="off" placeholder="sk-sillage-…" required>
+      <div class="row end"><button class="primary" type="submit">Unlock</button></div>
+    </form>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>
