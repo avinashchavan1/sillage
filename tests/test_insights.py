@@ -84,3 +84,21 @@ def test_report_not_ready():
     report = build_report(collection()[:1], [], TODAY)
     assert not report["ready"]
     assert "2 more" in report["summary"][0]
+
+
+def test_suggest_wear_respects_weather():
+    from app.recommend import similar, suggest_wear
+
+    frags = [
+        frag(1, "Gourmand Love", 2, ["vanilla", "sweet", "amber"], ["Cinnamon"], ["Tonka Bean"], ["Vanilla"]),
+        frag(2, "Citrus Like", 1, ["citrus", "fresh", "aromatic"], ["Bergamot", "Lemon"], ["Neroli"], ["Musk"]),
+        frag(3, "Hated", -2, ["aquatic"], ["Calone"]),
+        frag(4, "Wish", None, ["citrus"], status="wishlist"),
+    ]
+    hot = [p["name"] for p in suggest_wear(frags, [], weather="hot", today=TODAY)]
+    cold = [p["name"] for p in suggest_wear(frags, [], weather="cold", today=TODAY)]
+    assert hot[0] == "Citrus Like" and cold[0] == "Gourmand Love"
+    assert "Hated" not in hot and "Wish" not in hot  # disliked and unowned never suggested
+    sims = similar(frags[3], frags)  # a citrus wishlist item is closest to the citrus fragrance
+    assert sims[0]["name"] == "Citrus Like" and sims[0]["shared"] == ["citrus"]
+    assert all(s["name"] != "Wish" for s in sims)

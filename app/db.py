@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
@@ -75,7 +76,52 @@ CREATE TABLE IF NOT EXISTS ai_reports (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     payload    TEXT NOT NULL
 );
+
+-- Analyses published by AI clients (MCP, REST, the in-app assistant) for the app to display
+CREATE TABLE IF NOT EXISTS insights (
+    id             INTEGER PRIMARY KEY,
+    title          TEXT NOT NULL,
+    summary        TEXT NOT NULL,
+    body           TEXT,
+    chart          TEXT,
+    fragrance_ids  TEXT NOT NULL DEFAULT '[]',
+    source         TEXT NOT NULL DEFAULT 'AI',
+    pinned         INTEGER NOT NULL DEFAULT 0,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Convenience views for ad-hoc analysis (documented in SQL_GUIDE)
+CREATE VIEW IF NOT EXISTS v_fragrances AS
+    SELECT f.id, f.name, f.brand, f.year, f.concentration, f.gender, f.family, f.status,
+           f.sentiment AS rating, f.bottle_ml, f.community_rating, f.created_at,
+           (SELECT COUNT(*) FROM wears w WHERE w.fragrance_id = f.id) AS wear_count,
+           (SELECT MAX(worn_on) FROM wears w WHERE w.fragrance_id = f.id) AS last_worn,
+           (SELECT COALESCE(SUM(compliments), 0) FROM wears w WHERE w.fragrance_id = f.id) AS compliments
+    FROM fragrances f;
+CREATE VIEW IF NOT EXISTS v_notes AS
+    SELECT n.fragrance_id, f.name, f.brand, f.status, f.sentiment AS rating, n.layer, n.note
+    FROM fragrance_notes n JOIN fragrances f ON f.id = n.fragrance_id;
+CREATE VIEW IF NOT EXISTS v_accords AS
+    SELECT a.fragrance_id, f.name, f.brand, f.status, f.sentiment AS rating, a.accord, a.strength
+    FROM fragrance_accords a JOIN fragrances f ON f.id = a.fragrance_id;
+CREATE VIEW IF NOT EXISTS v_wears AS
+    SELECT w.id, w.fragrance_id, f.name, f.brand, w.worn_on, w.occasion, w.weather, w.sprays,
+           w.enjoyment, w.compliments, w.notes
+    FROM wears w JOIN fragrances f ON f.id = w.fragrance_id;
 """
+
+SQL_GUIDE = """SQLite database of one person's fragrance collection. Read-only; one SELECT (or WITH) statement.
+Ratings everywhere are -2 hate, -1 dislike, 0 neutral, 1 like, 2 love (NULL = unrated).
+Views (prefer these):
+  v_fragrances(id, name, brand, year, concentration, gender, family, status, rating, bottle_ml,
+               community_rating, created_at, wear_count, last_worn, compliments)
+      status is one of owned, sample, decant, wishlist, tried, sold.
+  v_notes(fragrance_id, name, brand, status, rating, layer, note)   layer: top|middle|base|general
+  v_accords(fragrance_id, name, brand, status, rating, accord, strength)   strength 0-1, accord lowercase
+  v_wears(id, fragrance_id, name, brand, worn_on, occasion, weather, sprays, enjoyment, compliments, notes)
+      worn_on is 'YYYY-MM-DD'; enjoyment uses the rating scale.
+Function note_key(note) groups variants ('Calabrian bergamot' -> 'bergamot'); use it to GROUP BY notes.
+Base tables: fragrances, fragrance_notes, fragrance_accords, wears, insights."""
 
 LAYERS = (("top", "top_notes"), ("middle", "middle_notes"), ("base", "base_notes"), ("general", "notes"))
 JSON_COLUMNS = ("perfumers", "seasons")
@@ -257,6 +303,93 @@ def delete_wear(conn: sqlite3.Connection, wid: int) -> bool:
 def save_ai_report(conn: sqlite3.Connection, payload: dict) -> None:
     conn.execute("INSERT INTO ai_reports (payload) VALUES (?)", (json.dumps(payload),))
     conn.commit()
+
+
+MAX_SQL_ROWS = 500
+
+
+class QueryError(Exception):
+    pass
+
+
+def run_readonly_query(sql: str, path: Optional[Path] = None, max_rows: int = MAX_SQL_ROWS) -> dict:
+    """Run one SELECT on a read-only connection with a time budget. Used by AI clients for analysis."""
+    from .text import note_key
+
+    statement = sql.strip().rstrip(";").strip()
+    head = statement.split(None, 1)[0].lower() if statement else ""
+    if head not in ("select", "with"):
+        raise QueryError("Only a single SELECT (or WITH ... SELECT) statement is allowed")
+    if ";" in statement:
+        raise QueryError("Only one statement per query")
+    path = path or db_path()
+    connect(path).close()  # make sure the schema exists
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        conn.execute("PRAGMA query_only = ON")
+        conn.create_function("note_key", 1, lambda s: note_key(s) if s else s, deterministic=True)
+        deadline = time.monotonic() + 3.0
+        conn.set_progress_handler(lambda: 1 if time.monotonic() > deadline else 0, 10_000)
+        try:
+            cur = conn.execute(statement)
+            rows = cur.fetchmany(max_rows + 1)
+        except sqlite3.OperationalError as exc:
+            msg = "Query took too long (3s limit)" if "interrupted" in str(exc) else str(exc)
+            raise QueryError(msg) from exc
+        except sqlite3.DatabaseError as exc:
+            raise QueryError(str(exc)) from exc
+        columns = [d[0] for d in cur.description or []]
+        return {
+            "columns": columns,
+            "rows": [list(r) for r in rows[:max_rows]],
+            "row_count": min(len(rows), max_rows),
+            "truncated": len(rows) > max_rows,
+        }
+    finally:
+        conn.close()
+
+
+def _insight_row(row: sqlite3.Row) -> dict:
+    item = dict(row)
+    item["chart"] = json.loads(item["chart"]) if item["chart"] else None
+    item["fragrance_ids"] = json.loads(item["fragrance_ids"] or "[]")
+    item["pinned"] = bool(item["pinned"])
+    return item
+
+
+def insert_insight(conn: sqlite3.Connection, data: dict) -> dict:
+    cur = conn.execute(
+        "INSERT INTO insights (title, summary, body, chart, fragrance_ids, source, pinned) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            data["title"], data["summary"], data.get("body"),
+            json.dumps(data["chart"]) if data.get("chart") else None,
+            json.dumps(data.get("fragrance_ids") or []), data.get("source") or "AI", int(bool(data.get("pinned"))),
+        ),
+    )
+    conn.commit()
+    return get_insight(conn, cur.lastrowid)
+
+
+def get_insight(conn: sqlite3.Connection, iid: int) -> Optional[dict]:
+    row = conn.execute("SELECT * FROM insights WHERE id = ?", (iid,)).fetchone()
+    return _insight_row(row) if row else None
+
+
+def list_insights(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
+    rows = conn.execute("SELECT * FROM insights ORDER BY pinned DESC, id DESC LIMIT ?", (limit,)).fetchall()
+    return [_insight_row(r) for r in rows]
+
+
+def set_insight_pinned(conn: sqlite3.Connection, iid: int, pinned: bool) -> bool:
+    cur = conn.execute("UPDATE insights SET pinned = ? WHERE id = ?", (int(pinned), iid))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def delete_insight(conn: sqlite3.Connection, iid: int) -> bool:
+    cur = conn.execute("DELETE FROM insights WHERE id = ?", (iid,))
+    conn.commit()
+    return cur.rowcount > 0
 
 
 def latest_ai_report(conn: sqlite3.Connection) -> Optional[dict]:
