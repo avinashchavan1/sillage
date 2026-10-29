@@ -6,9 +6,12 @@ read the collection, run analyses and publish results back into the app. All /ap
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import json
 import os
+import re
+import secrets
 import sqlite3
 from pathlib import Path
 from typing import Any, Iterator, Optional
@@ -47,6 +50,11 @@ mcp_mount = _MCPMount()
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
     print(f"Sillage API key: {auth.api_key()}  (MCP endpoint: /mcp, API docs: /docs)", flush=True)
+    conn = db.connect()
+    try:
+        db.backfill_images(conn, lookup.fragrantica.image_for)
+    finally:
+        conn.close()
     server = mcp_server.build_server()
     mcp_mount.app = mcp_server.http_app(server)
     async with server.session_manager.run():
@@ -113,6 +121,24 @@ def bootstrap(request: Request):
     if client in ("127.0.0.1", "::1") and host in ("127.0.0.1", "localhost", "::1"):
         return {"api_key": auth.api_key()}
     return {"api_key": None}
+
+
+MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{16}\.(jpg|png|webp)$")
+PHOTO_TYPES = {"jpeg": ("jpg", b"\xff\xd8\xff"), "png": ("png", b"\x89PNG"), "webp": ("webp", b"RIFF")}
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+
+
+def _media_dir() -> Path:
+    return Path(db.db_path()).parent / "media"
+
+
+@app.get("/media/{name}", include_in_schema=False)
+def media(name: str):
+    """Your uploaded bottle photos. Public by unguessable name so <img> tags work without the key."""
+    path = _media_dir() / name
+    if not MEDIA_NAME.match(name) or not path.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(path, headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 @app.get("/", include_in_schema=False)
@@ -205,6 +231,46 @@ def refresh_fragrance(fid: int, conn: sqlite3.Connection = Depends(get_db)):
     query = url if lookup.fragrantica.canonical_url(url) else f"{item['brand']} {item['name']}".strip()
     details = _do_lookup(query).details
     db.update_fragrance(conn, fid, details.model_dump())
+    return db.get_fragrance(conn, fid)
+
+
+class PhotoUpload(BaseModel):
+    data_url: str = Field(..., max_length=14_000_000, description="data:image/jpeg|png|webp;base64,...")
+
+
+def _remove_local_photo(url: Optional[str]) -> None:
+    if url and url.startswith("/media/") and MEDIA_NAME.match(url[7:]):
+        (_media_dir() / url[7:]).unlink(missing_ok=True)
+
+
+@api.post("/fragrances/{fid}/photo")
+def upload_photo(fid: int, body: PhotoUpload, conn: sqlite3.Connection = Depends(get_db)):
+    """Attach your own photo of the bottle (replaces the Fragrantica image in the app)."""
+    item = _get_or_404(conn, fid)
+    m = re.match(r"^data:image/(jpeg|png|webp);base64,(.+)$", body.data_url, re.S)
+    if not m:
+        raise HTTPException(422, "Send a JPEG, PNG or WebP image as a data URL")
+    try:
+        raw = base64.b64decode(m.group(2), validate=True)
+    except ValueError:
+        raise HTTPException(422, "The image data isn't valid base64")
+    ext, magic = PHOTO_TYPES[m.group(1)]
+    if not raw.startswith(magic) or len(raw) > MAX_PHOTO_BYTES:
+        raise HTTPException(422, "That isn't a valid image under 10 MB")
+    _media_dir().mkdir(parents=True, exist_ok=True)
+    name = f"{secrets.token_urlsafe(12)}.{ext}"
+    (_media_dir() / name).write_bytes(raw)
+    _remove_local_photo(item.get("image_url"))
+    db.update_fragrance(conn, fid, {"image_url": f"/media/{name}"})
+    return db.get_fragrance(conn, fid)
+
+
+@api.delete("/fragrances/{fid}/photo")
+def delete_photo(fid: int, conn: sqlite3.Connection = Depends(get_db)):
+    """Remove your photo; the official Fragrantica image comes back when there is one."""
+    item = _get_or_404(conn, fid)
+    _remove_local_photo(item.get("image_url"))
+    db.update_fragrance(conn, fid, {"image_url": lookup.fragrantica.image_for(item.get("source_url"))})
     return db.get_fragrance(conn, fid)
 
 

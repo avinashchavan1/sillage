@@ -130,27 +130,83 @@ async function loadFragrances() {
 
 /* ================================================================ shared bits */
 
-function monogram(f) {
-  const initials = (f.name || "?").split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  const c1 = accordColor(f.accords?.[0]?.name || f.name);
-  const c2 = accordColor(f.accords?.[1]?.name || f.brand);
-  return `<div class="monogram" style="background:linear-gradient(135deg, ${c1}, ${c2})">${esc(initials)}</div>`;
+// Generated bottle artwork: every fragrance gets a picture even without a photo. Deterministic per fragrance —
+// the brand picks the silhouette and cap, the top accords colour the juice, the label carries the initials.
+function hashStr(s) { let h = 2166136261; for (const c of String(s || "")) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+const BOTTLES = [
+  { body: "M30 58 Q30 50 38 50 H82 Q90 50 90 58 V140 Q90 148 82 148 H38 Q30 148 30 140 Z", neck: [52, 40, 16, 12], label: [40, 92, 40, 30] },   // classic square
+  { body: "M42 54 Q42 48 48 48 H72 Q78 48 78 54 V142 Q78 148 72 148 H48 Q42 148 42 142 Z", neck: [53, 36, 14, 14], label: [46, 96, 28, 34] },   // tall slim
+  { body: "M60 52 C88 52 96 78 96 100 C96 128 80 148 60 148 C40 148 24 128 24 100 C24 78 32 52 60 52 Z", neck: [52, 40, 16, 14], label: [42, 92, 36, 28] }, // round flacon
+  { body: "M46 50 H74 L92 70 V128 L74 148 H46 L28 128 V70 Z", neck: [52, 38, 16, 14], label: [41, 90, 38, 30] },                                // faceted
+  { body: "M34 62 Q34 50 46 50 H74 Q86 50 86 62 L92 136 Q93 148 80 148 H40 Q27 148 28 136 Z", neck: [51, 38, 18, 14], label: [41, 94, 38, 30] }, // tapered
+];
+const CAPS = [
+  (x, w, fill) => `<rect x="${x - 4}" y="14" width="${w + 8}" height="26" rx="3" fill="${fill}"/>`,
+  (x, w, fill) => `<circle cx="${x + w / 2}" cy="26" r="15" fill="${fill}"/>`,
+  (x, w, fill) => `<rect x="${x - 10}" y="22" width="${w + 20}" height="18" rx="2" fill="${fill}"/>`,
+  (x, w, fill) => `<path d="M${x - 2} 40 L${x + w / 2} 8 L${x + w + 2} 40 Z" fill="${fill}"/>`,
+];
+const CAP_TONES = [["#2b2622", "#4a423b"], ["#c9a24a", "#f1d68c"], ["#d8d6d2", "#ffffff"], ["#1b1b1f", "#3b3b44"], ["#7a4a2a", "#a8724a"]];
+function bottleArt(f) {
+  const brandH = hashStr(f.brand || f.name), nameH = hashStr(f.name);
+  const shape = BOTTLES[brandH % BOTTLES.length], cap = CAPS[(brandH >>> 3) % CAPS.length], tone = CAP_TONES[(brandH >>> 6) % CAP_TONES.length];
+  const acc = (f.accords || []).slice(0, 3).map((a) => accordColor(a.name));
+  const c1 = acc[0] || accordColor(f.family || f.name), c2 = acc[1] || c1, c3 = acc[2] || c2;
+  const fill = 0.55 + ((nameH % 30) / 100); // how full the bottle is
+  const top = 50 + (148 - 50) * (1 - fill);
+  const initials = (f.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const [nx, ny, nw, nh] = shape.neck, [lx, ly, lw, lh] = shape.label;
+  const id = "b" + nameH.toString(36);
+  return `<svg class="bottle-art" viewBox="0 0 120 160" role="img" aria-label="${esc(fullName(f))} bottle artwork">
+    <defs>
+      <linearGradient id="${id}j" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="0.55" stop-color="${c2}"/><stop offset="1" stop-color="${c3}"/></linearGradient>
+      <linearGradient id="${id}k" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${tone[1]}"/><stop offset="1" stop-color="${tone[0]}"/></linearGradient>
+      <clipPath id="${id}c"><path d="${shape.body}"/></clipPath>
+    </defs>
+    <ellipse cx="60" cy="152" rx="36" ry="4" fill="rgb(0 0 0 / 14%)"/>
+    <rect x="${nx}" y="${ny}" width="${nw}" height="${nh}" rx="2" fill="rgb(255 255 255 / 55%)" stroke="rgb(0 0 0 / 12%)"/>
+    ${cap(nx, nw, `url(#${id}k)`)}
+    <path d="${shape.body}" fill="rgb(255 255 255 / 38%)" stroke="rgb(0 0 0 / 14%)" stroke-width="1"/>
+    <g clip-path="url(#${id}c)">
+      <rect x="0" y="${top.toFixed(1)}" width="120" height="160" fill="url(#${id}j)" opacity="0.9"/>
+      <rect x="0" y="${top.toFixed(1)}" width="120" height="2" fill="rgb(255 255 255 / 45%)"/>
+      <rect x="34" y="44" width="9" height="110" rx="4" fill="rgb(255 255 255 / 30%)" transform="rotate(4 38 100)"/>
+    </g>
+    <rect x="${lx}" y="${ly}" width="${lw}" height="${lh}" rx="2" fill="rgb(255 255 255 / 88%)" stroke="rgb(0 0 0 / 10%)"/>
+    <text x="${lx + lw / 2}" y="${ly + lh / 2 + 5}" text-anchor="middle" font-family="Bodoni Moda, Didot, Georgia, serif" font-size="${initials.length > 1 ? 14 : 16}" font-weight="700" fill="#1d1a16">${esc(initials)}</text>
+  </svg>`;
+}
+
+function artTile(f) {
+  const c1 = accordColor(f.accords?.[0]?.name || f.family || f.name);
+  return `<div class="art-tile" style="background:radial-gradient(circle at 50% 38%, color-mix(in srgb, ${c1} 26%, var(--surface)) 0%, var(--surface-2) 78%)">${bottleArt(f)}</div>`;
 }
 function thumb(f) {
   return f.image_url
-    ? `<img src="${esc(f.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="1">`
-    : monogram(f);
+    ? `<img src="${esc(f.image_url)}" alt="${esc(fullName(f))}" loading="lazy" referrerpolicy="no-referrer" data-fallback="1" data-fid="${esc(f.id ?? "")}">`
+    : artTile(f);
 }
-// Broken remote images -> monogram
+// A photo that can't load (blocked by the image host, offline, deleted) falls back to the bottle artwork
 document.addEventListener("error", (e) => {
   const img = e.target;
   if (img.tagName === "IMG" && img.dataset.fallback) {
+    const f = state.fragrances.find((x) => String(x.id) === img.dataset.fid) || state.lookup?.details || { name: img.alt };
     const wrap = document.createElement("div");
     wrap.style.cssText = "width:100%;height:100%";
-    wrap.innerHTML = monogram({ name: img.closest("[data-name]")?.dataset.name || "?" });
+    wrap.innerHTML = artTile({ ...f, image_url: null });
     img.replaceWith(wrap);
   }
 }, true);
+
+async function photoDataUrl(file) {
+  if (!file || !/^image\//.test(file.type)) throw new Error("Choose an image file");
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 1100 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
+  canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.86);
+}
 
 function sentimentPill(s) {
   if (s === null || s === undefined) return `<span class="pill">Unrated</span>`;
@@ -392,7 +448,8 @@ function detailView(f) {
   const src = f.source_url ? `<a href="${esc(f.source_url)}" target="_blank" rel="noopener noreferrer">${f.source === "fragrantica" ? "View on Fragrantica" : "Source"} ↗</a>` : "";
   return `<div class="detail" data-name="${esc(f.name)}">
     <div class="detail-hero">
-      <div class="img">${thumb(f)}</div>
+      <div class="hero-art"><div class="img">${thumb(f)}</div>
+        <div class="photo-actions"><label class="btn small" for="d-photo">${f.image_url?.startsWith("/media/") ? "Replace photo" : "Add your photo"}</label><input id="d-photo" type="file" accept="image/*" hidden>${f.image_url?.startsWith("/media/") ? `<button class="small ghost" data-act="rm-photo">Remove</button>` : ""}</div></div>
       <div>
         <div class="subtle">${esc(f.brand)}</div>
         <h1>${esc(f.name)}</h1>
@@ -496,6 +553,14 @@ function wireDetail(f) {
   const dlg = $("#detail");
   $$("[data-close]", body).forEach((b) => (b.onclick = () => dlg.close()));
   $$("[data-open-similar]", body).forEach((el) => (el.onclick = () => openDetail(Number(el.dataset.openSimilar))));
+  const ph = $("#d-photo", body);
+  if (ph) ph.onchange = async () => {
+    const lab = ph.previousElementSibling; lab.textContent = "Uploading…";
+    try { await api(`/api/fragrances/${f.id}/photo`, { method: "POST", body: { data_url: await photoDataUrl(ph.files[0]) } }); toast("Photo saved"); openDetail(f.id); }
+    catch (err) { toast(err.message, { error: true }); lab.textContent = "Add your photo"; }
+  };
+  const rmp = $('[data-act="rm-photo"]', body);
+  if (rmp) rmp.onclick = async () => { await api(`/api/fragrances/${f.id}/photo`, { method: "DELETE" }); openDetail(f.id); };
 
   const personal = $("#personal", body);
   if (personal) {
