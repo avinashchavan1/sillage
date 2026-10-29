@@ -183,7 +183,7 @@ function artTile(f) {
 }
 function thumb(f) {
   return f.image_url
-    ? `<img src="${esc(f.image_url)}" alt="${esc(fullName(f))}" loading="lazy" referrerpolicy="no-referrer" data-fallback="1" data-fid="${esc(f.id ?? "")}">`
+    ? `<img src="${esc(f.image_url)}" alt="${esc(fullName(f))}" loading="lazy" data-fallback="1" data-fid="${esc(f.id ?? "")}">`
     : artTile(f);
 }
 // A photo that can't load (blocked by the image host, offline, deleted) falls back to the bottle artwork

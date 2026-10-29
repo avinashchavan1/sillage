@@ -930,7 +930,7 @@ function detailView(f) {
     <div class="hero"><div class="hero-art">${labelArt(f)}${S.canWrite && S.assets ? `
       <div class="photo-actions"><label class="btn small" for="d-photo">${f.photo_id ? "Replace photo" : "Add photo"}</label><input id="d-photo" type="file" accept="image/*" hidden>${f.photo_id ? `<button class="small ghost" data-act="rm-photo">Remove</button>` : ""}</div>` : ""}</div><div>
       <div class="subtle">${esc(f.brand)}</div><h1>${esc(f.name)}</h1>${facts(f)}
-      <div class="small subtle" style="margin-top:6px"><a href="${esc(fragranticaSearch(f))}" target="_blank" rel="noopener noreferrer">Check on Fragrantica ↗</a>${f.example ? " · example entry" : f.source === "manual" ? " · entered manually" : " · details from Claude"}</div>
+      <div class="small subtle" style="margin-top:6px"><a href="${esc(/^https:\/\/www\.fragrantica\.com\/perfume\//.test(f.source_url || "") ? f.source_url : fragranticaSearch(f))}" target="_blank" rel="noopener noreferrer">${f.source_url ? "View on Fragrantica" : "Check on Fragrantica"} ↗</a>${f.example ? " · example entry" : f.source === "manual" ? " · entered manually" : " · details from Claude"}</div>
     </div></div>
     ${ro ? `<div class="row">${sentimentPill(f.sentiment)}<span class="pill">${esc(STATUSES[f.status])}</span></div>` : `
     <form class="card" id="personal">
