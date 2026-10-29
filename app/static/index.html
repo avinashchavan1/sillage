@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sillage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='11' y='3' width='10' height='5' rx='1.5' fill='%239a6b2f'/><rect x='6' y='9' width='20' height='20' rx='5' fill='%23d4a35f'/></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#collection" aria-label="Sillage home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Sillage</span>
+    </a>
+    <nav class="tabs" aria-label="Main">
+      <a href="#collection" data-view="collection">Collection</a>
+      <a href="#add" data-view="add">Add</a>
+      <a href="#wear" data-view="wear">Wear log</a>
+      <a href="#insights" data-view="insights">Insights</a>
+    </nav>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>
+  </header>
+
+  <main>
+    <section id="view-collection" class="view" hidden></section>
+    <section id="view-add" class="view" hidden></section>
+    <section id="view-wear" class="view" hidden></section>
+    <section id="view-insights" class="view" hidden></section>
+  </main>
+
+  <dialog id="detail" aria-label="Fragrance details"><div id="detail-body"></div></dialog>
+  <div id="tooltip" role="tooltip" hidden></div>
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
