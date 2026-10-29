@@ -1,0 +1,1260 @@
+<title>Sillage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600;6..96,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a collector's catalogue — perfume-label Bodoni over a quiet pearl ground, accord colours as the only loud thing. */
+:root {
+  --bg: #f3f2f6;
+  --surface: #ffffff;
+  --surface-2: #ebe9f0;
+  --border: #dddae4;
+  --ink: #19171f;
+  --ink-2: #4f4b5a;
+  --muted: #7a7585;
+  --accent: #8a2f58;
+  --accent-soft: #f4e5ec;
+  --accent-ink: #ffffff;
+  --pos: #2a78d6;
+  --neg: #c8463c;
+  --ok: #2f7d32;
+  --danger: #b3261e;
+  --warn-bg: #fbefd5;
+  --shadow: 0 1px 2px rgb(25 23 31 / 6%), 0 8px 24px rgb(25 23 31 / 6%);
+  --display: "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121016; --surface: #1b1820; --surface-2: #25212c; --border: #34303c;
+    --ink: #f1eef5; --ink-2: #c5c0cf; --muted: #918b9c;
+    --accent: #e48bb1; --accent-soft: #3a2230; --accent-ink: #1d0d15;
+    --pos: #3987e5; --neg: #e0645a; --ok: #6cc070; --danger: #f2867e; --warn-bg: #3a3020;
+    --shadow: 0 1px 2px rgb(0 0 0 / 35%), 0 8px 28px rgb(0 0 0 / 30%);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121016; --surface: #1b1820; --surface-2: #25212c; --border: #34303c;
+  --ink: #f1eef5; --ink-2: #c5c0cf; --muted: #918b9c;
+  --accent: #e48bb1; --accent-soft: #3a2230; --accent-ink: #1d0d15;
+  --pos: #3987e5; --neg: #e0645a; --ok: #6cc070; --danger: #f2867e; --warn-bg: #3a3020;
+  --shadow: 0 1px 2px rgb(0 0 0 / 35%), 0 8px 28px rgb(0 0 0 / 30%);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-x: hidden;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: var(--accent); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: 2.1rem; line-height: 1.1; letter-spacing: -0.01em; }
+h2 { font-size: 1.5rem; line-height: 1.15; }
+h3 { font-size: 1.12rem; }
+.wrap { max-width: 1160px; margin: 0 auto; }
+.subtle { color: var(--muted); }
+.small { font-size: 0.85rem; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--bg);
+  border-bottom: 1px solid var(--border); margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+}
+.topbar .wrap { display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: baseline; gap: 8px; text-decoration: none; color: var(--ink); }
+.brand b { font-family: var(--display); font-size: 1.55rem; font-weight: 700; letter-spacing: 0.02em; }
+.brand span { font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.tabs { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+.tabs a { padding: 7px 12px; border-radius: 999px; color: var(--ink-2); text-decoration: none; font-weight: 600; white-space: nowrap; font-size: 0.93rem; }
+.tabs a:hover { background: var(--surface-2); }
+.tabs a.active { background: var(--ink); color: var(--bg); }
+main.wrap { padding-block: 24px 80px; }
+.view-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+
+button, .btn {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 9px 16px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+button:hover, .btn:hover { border-color: var(--muted); }
+button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+button.ghost:hover { background: var(--surface-2); }
+button.danger { color: var(--danger); }
+button.danger.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+button.small, .btn.small { padding: 5px 10px; font-size: 0.85rem; border-radius: 8px; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input, select, textarea {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 9px 12px; width: 100%; min-width: 0;
+}
+textarea { resize: vertical; min-height: 70px; }
+.field { display: grid; gap: 5px; font-size: 0.85rem; color: var(--ink-2); font-weight: 600; }
+.form-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.form-grid > * { min-width: 0; }
+.form-grid .wide { grid-column: 1 / -1; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row.end { justify-content: flex-end; }
+.row.between { justify-content: space-between; }
+
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 0.88rem; background: var(--surface); color: var(--ink-2); font-weight: 500; }
+.seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.seg label:has(input:checked) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); font-size: 0.85rem; border: 1px solid transparent; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.chip.pos { border-color: color-mix(in srgb, var(--pos) 55%, transparent); background: color-mix(in srgb, var(--pos) 12%, var(--surface)); }
+.chip.neg { border-color: color-mix(in srgb, var(--neg) 55%, transparent); background: color-mix(in srgb, var(--neg) 12%, var(--surface)); }
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.pill.s2 { background: color-mix(in srgb, var(--pos) 24%, var(--surface)); color: var(--ink); }
+.pill.s1 { background: color-mix(in srgb, var(--pos) 12%, var(--surface)); color: var(--ink); }
+.pill.s-1 { background: color-mix(in srgb, var(--neg) 12%, var(--surface)); color: var(--ink); }
+.pill.s-2 { background: color-mix(in srgb, var(--neg) 24%, var(--surface)); color: var(--ink); }
+.pill.match { background: var(--accent-soft); color: var(--ink); }
+.pill.example { background: var(--warn-bg); color: var(--ink); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; min-width: 0; }
+.stack { display: grid; gap: 16px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.notice { padding: 12px 14px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); font-size: 0.9rem; }
+.notice.warn { background: var(--warn-bg); color: var(--ink); }
+.notice.err { background: color-mix(in srgb, var(--danger) 13%, var(--surface)); color: var(--ink); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.filters input { flex: 1 1 220px; }
+.filters select { width: auto; flex: 0 1 auto; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.frag { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform .15s; box-shadow: var(--shadow); }
+.frag:hover { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .frag { transition: none; } .frag:hover { transform: none; } }
+.label-art { aspect-ratio: 5 / 3; position: relative; display: grid; place-items: center; overflow: hidden; }
+.label-art .mono { font-family: var(--display); font-weight: 700; font-size: 2.4rem; color: rgb(255 255 255 / 94%); text-shadow: 0 1px 10px rgb(0 0 0 / 25%); letter-spacing: 0.04em; }
+.label-art .tl { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; }
+.label-art .tr { position: absolute; bottom: 10px; right: 10px; }
+.frag .body { padding: 12px 14px 14px; display: grid; gap: 6px; flex: 1; align-content: start; }
+.frag .name { font-family: var(--display); font-size: 1.25rem; font-weight: 600; line-height: 1.15; }
+.frag .meta { color: var(--muted); font-size: 0.85rem; }
+.frag .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
+.strip { display: flex; height: 7px; border-radius: 4px; overflow: hidden; gap: 2px; }
+.strip span { display: block; height: 100%; }
+.empty { text-align: center; padding: 56px 20px; }
+.empty h2 { margin-bottom: 8px; }
+
+.accords { display: grid; gap: 4px; }
+.accord { position: relative; height: 26px; border-radius: 6px; overflow: hidden; background: var(--surface-2); }
+.accord .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; }
+.accord .lbl { position: relative; z-index: 1; line-height: 26px; padding: 0 10px; font-size: 0.85rem; font-weight: 700; color: #fff; text-shadow: 0 0 4px rgb(0 0 0 / 55%); }
+.pyramid { display: grid; gap: 12px; }
+.pyramid h4 { margin: 0 0 6px; font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 0.9rem; margin-top: 8px; }
+.facts b { color: var(--ink); }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.two-col > * { min-width: 0; }
+.predict { border-radius: var(--radius); padding: 14px 16px; background: var(--accent-soft); display: grid; gap: 8px; }
+.predict .big { font-family: var(--display); font-size: 2.3rem; font-weight: 700; line-height: 1; }
+
+dialog#detail { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--border); border-radius: 18px; background: var(--bg); color: var(--ink); }
+dialog::backdrop { background: rgb(15 10 20 / 50%); }
+.detail { padding: 22px; display: grid; gap: 16px; position: relative; }
+.close-x { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; padding: 0; border-radius: 50%; }
+.hero { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: start; padding-right: 40px; }
+.hero .label-art { aspect-ratio: 3 / 4; border-radius: 12px; }
+.hero .label-art .mono { font-size: 2rem; }
+.wear-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.wear-list li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; }
+.wear-list .when { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wear-list .what { color: var(--ink-2); flex: 1; min-width: 0; }
+
+.search-hero { display: flex; gap: 10px; }
+.search-hero input { font-size: 1.1rem; padding: 14px 16px; border-radius: 12px; }
+.search-hero button { padding: 0 22px; border-radius: 12px; white-space: nowrap; }
+.loading { display: flex; gap: 12px; align-items: center; color: var(--ink-2); padding: 16px 2px; }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+.bulk-log { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 4px; font-size: 0.9rem; }
+.bulk-log li { display: flex; gap: 8px; }
+.bulk-log .st { width: 18px; flex: none; text-align: center; }
+.examples { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+.summary-card { background: linear-gradient(140deg, var(--accent-soft), var(--surface) 70%); }
+.summary-card p { font-family: var(--display); font-size: 1.3rem; line-height: 1.4; margin: 0 0 6px; }
+.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.kpi .v { font-family: var(--display); font-size: 2rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi .k { color: var(--muted); font-size: 0.85rem; }
+.igrid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.igrid > * { min-width: 0; }
+.legend { display: flex; gap: 14px; font-size: 0.8rem; color: var(--ink-2); margin-bottom: 8px; }
+.legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.div-chart { display: grid; gap: 3px; }
+.div-row { display: grid; grid-template-columns: minmax(80px, 34%) 1fr 1fr 44px; align-items: center; min-height: 24px; }
+.div-row:hover { background: var(--surface-2); border-radius: 6px; }
+.div-row .lbl { font-size: 0.88rem; padding: 0 8px 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.div-row .lbl small { color: var(--muted); }
+.div-row .neg-half { display: flex; justify-content: flex-end; border-right: 1px solid var(--muted); height: 22px; align-items: center; }
+.div-row .pos-half { display: flex; height: 22px; align-items: center; }
+.div-row .bar { height: 10px; }
+.div-row .neg-half .bar { background: var(--neg); border-radius: 4px 0 0 4px; margin-right: 2px; }
+.div-row .pos-half .bar { background: var(--pos); border-radius: 0 4px 4px 0; margin-left: 2px; }
+.div-row .val { font-size: 0.8rem; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+.cols { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; align-items: end; height: 150px; padding-top: 18px; }
+.cols .col { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; position: relative; }
+.cols .bar { background: var(--pos); border-radius: 4px 4px 0 0; }
+.cols .col:hover .bar { filter: brightness(1.15); }
+.cols .top { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.75rem; color: var(--ink-2); }
+.axis { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; border-top: 1px solid var(--border); padding-top: 4px; font-size: 0.7rem; color: var(--muted); text-align: center; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 2px; border-bottom: 1px solid var(--border); font-size: 0.92rem; align-items: center; }
+.list li:last-child { border-bottom: 0; }
+.link { cursor: pointer; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+.link:hover { text-decoration-color: var(--accent); }
+.num { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num.wrap { white-space: normal; text-align: right; }
+.tbl-wrap { overflow-x: auto; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tbl th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.76rem; padding: 4px; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 7px 4px; border-bottom: 1px solid var(--border); }
+.tbl .r { text-align: right; font-variant-numeric: tabular-nums; }
+.wx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.wx { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.wx b { font-family: var(--display); font-size: 1.1rem; }
+.recs { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.rec { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.rec .name { font-family: var(--display); font-size: 1.15rem; font-weight: 600; }
+
+#tooltip { position: fixed; z-index: 100; pointer-events: none; max-width: 280px; padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 0.82rem; line-height: 1.4; }
+#toasts { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 200; display: grid; gap: 8px; width: min(460px, calc(100vw - 32px)); }
+.toast { background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.92rem; }
+.toast button { background: transparent; color: var(--bg); border-color: color-mix(in srgb, var(--bg) 40%, transparent); padding: 4px 10px; }
+.toast.err { background: var(--danger); color: #fff; }
+
+@media (max-width: 720px) {
+  h1 { font-size: 1.7rem; }
+  .brand span { display: none; }
+  .brand b { font-size: 1.2rem; }
+  .topbar .wrap { gap: 8px; }
+  .tabs { margin-left: 0; flex: 1; }
+  .tabs a { padding: 6px 7px; font-size: 0.85rem; }
+  .two-col { grid-template-columns: 1fr; }
+  .igrid { grid-template-columns: 1fr; }
+  .search-hero { flex-direction: column; }
+  .search-hero button { padding: 12px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 10px; }
+  .frag .name { font-size: 1.08rem; }
+  .hero { grid-template-columns: 84px 1fr; }
+  .detail { padding: 16px; }
+}
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#collection"><b>Sillage</b><span>fragrance ledger</span></a>
+    <nav class="tabs" aria-label="Main">
+      <a href="#collection" data-view="collection">Collection</a>
+      <a href="#add" data-view="add">Add</a>
+      <a href="#wear" data-view="wear">Wear log</a>
+      <a href="#insights" data-view="insights">Insights</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <section id="view-collection" class="view"></section>
+  <section id="view-add" class="view" hidden></section>
+  <section id="view-wear" class="view" hidden></section>
+  <section id="view-insights" class="view" hidden></section>
+</main>
+<dialog id="detail" aria-label="Fragrance details"><div id="detail-body"></div></dialog>
+<div id="tooltip" role="tooltip" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* ============================================================ helpers */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const use = (name) => (window.claude?.use ? window.claude.use(name) : Promise.resolve(null));
+
+const SENTIMENTS = [{ v: 2, label: "Love" }, { v: 1, label: "Like" }, { v: 0, label: "Neutral" }, { v: -1, label: "Dislike" }, { v: -2, label: "Hate" }];
+const SENT = Object.fromEntries(SENTIMENTS.map((s) => [s.v, s.label]));
+const STATUSES = { owned: "Owned", sample: "Sample", decant: "Decant", wishlist: "Wishlist", tried: "Tried", sold: "Sold" };
+const WEARABLE = new Set(["owned", "sample", "decant"]);
+const OCCASIONS = ["Work", "Casual", "Date", "Night out", "Special event", "Gym / sport", "Travel", "Home"];
+const WEATHER = ["Hot", "Warm", "Mild", "Cool", "Cold", "Rainy", "Humid"];
+const ACCORD_COLORS = {
+  woody: "#8a5a2b", citrus: "#c9a51f", "fresh spicy": "#6f9c33", "warm spicy": "#c0532b", "soft spicy": "#cf7f4e", spicy: "#c0532b",
+  aromatic: "#3f8f83", amber: "#c27c2c", sweet: "#d9648f", vanilla: "#c9a46a", floral: "#d9709f", "white floral": "#b7a58c",
+  "yellow floral": "#d6b032", rose: "#d03d68", fruity: "#e0602f", powdery: "#b394b6", musky: "#9e9186", aquatic: "#2f95bf",
+  marine: "#2a7fab", fresh: "#4fa9c2", ozonic: "#6aa8cf", green: "#3f9a4a", earthy: "#6d5a3f", leather: "#5c3a2a", smoky: "#6e6e6e",
+  tobacco: "#8c5e34", oud: "#4a2e25", balsamic: "#9b5b3a", lavender: "#8a6fc6", iris: "#7f76bd", violet: "#7055b0", patchouli: "#6b5a3c",
+  vetiver: "#6f7d3c", mossy: "#5f7a3f", honey: "#d39a22", coffee: "#5b3b25", cacao: "#5e3a2b", chocolate: "#5e3a2b", lactonic: "#b9a67e",
+  coconut: "#a8977a", caramel: "#c47f2f", animalic: "#7d5a4a", herbal: "#5f8f4c", salty: "#6f9db0", tropical: "#e58f2c", tuberose: "#b89f84",
+  almond: "#b8955f", rum: "#9b4f2a", cinnamon: "#b0552f", metallic: "#8a9298", mineral: "#7f8a8d", camphor: "#5fa794", anis: "#9aab57",
+  nutty: "#a37647", cherry: "#b21f3a", wine: "#7b2340", whiskey: "#a0602a", aldehydic: "#8ea6b8", gourmand: "#b8763a", resinous: "#9b5b3a",
+  conifer: "#2f6b4a", "fresh floral": "#e27ba7",
+};
+function accordColor(name) {
+  const k = String(name || "").toLowerCase();
+  if (ACCORD_COLORS[k]) return ACCORD_COLORS[k];
+  let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 42% 48%)`;
+}
+const todayISO = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+const daysSince = (iso) => (iso ? Math.floor((Date.parse(todayISO()) - Date.parse(String(iso).slice(0, 10))) / 86400000) : null);
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(String(iso).slice(0, 10) + "T00:00:00");
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+}
+function relDays(iso) {
+  const n = daysSince(iso);
+  if (n === null) return "never worn";
+  if (n <= 0) return "today"; if (n === 1) return "yesterday";
+  if (n < 30) return `${n} days ago`; if (n < 365) return `${Math.round(n / 30)} mo ago`;
+  return `${Math.round(n / 365)} yr ago`;
+}
+const fullName = (f) => [f.brand, f.name].filter(Boolean).join(" – ");
+const parseList = (s) => String(s || "").split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
+const signed = (n) => (n > 0 ? "+" : "") + Number(n).toFixed(2);
+const fragranticaSearch = (f) => `https://www.fragrantica.com/search/?query=${encodeURIComponent([f.brand, f.name].filter(Boolean).join(" "))}`;
+
+function toast(msg, { error = false, action, onAction, timeout = 5000 } = {}) {
+  const el = document.createElement("div");
+  el.className = "toast" + (error ? " err" : "");
+  const span = document.createElement("span"); span.textContent = msg; el.append(span);
+  if (action) { const b = document.createElement("button"); b.textContent = action; b.onclick = () => { onAction?.(); el.remove(); }; el.append(b); }
+  $("#toasts").append(el);
+  setTimeout(() => el.remove(), timeout);
+}
+const local = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } },
+};
+// Two-step confirm (the viewer never shows confirm() dialogs)
+function armed(btn, label, fn) {
+  btn.onclick = async () => {
+    if (!btn.classList.contains("armed")) {
+      const orig = btn.textContent;
+      btn.classList.add("armed"); btn.textContent = label;
+      setTimeout(() => { if (btn.isConnected) { btn.classList.remove("armed"); btn.textContent = orig; } }, 4000);
+      return;
+    }
+    btn.disabled = true; await fn();
+  };
+}
+
+/* ============================================================ taste model (port of app/insights.py) */
+const LAYER_WEIGHTS = { top_notes: 0.7, middle_notes: 1.0, base_notes: 1.0, notes: 0.9 };
+const PRIOR = 1.5, LIKE = 0.35, MIN_SCORED = 3;
+const QUALIFIERS = new Set(("african amalfi atlas australian bourbon brazilian bulgarian calabrian cambodian chinese egyptian french guatemalan " +
+  "haitian himalayan indian indonesian italian jamaican japanese javanese laotian madagascan madagascar mediterranean mexican moroccan " +
+  "omani peruvian provencal sicilian somalian spanish sri lankan tahitian texas tunisian turkish tuscan virginia virginian damask taif may").split(" "));
+const SUFFIXES = new Set(["absolute", "absolue", "essence", "oil", "extract", "co2", "infusion", "tincture"]);
+const fold = (s) => String(s || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const tokens = (s) => fold(s).replace(/'/g, "").match(/[a-z0-9]+/g) || [];
+function noteKey(n) {
+  const w = tokens(n); const s = w.filter((x) => !QUALIFIERS.has(x));
+  while (s.length > 1 && SUFFIXES.has(s[s.length - 1])) s.pop();
+  return (s.length ? s : w).join(" ");
+}
+function fragranceScore(f, wears) {
+  if (f.status === "wishlist") return null;
+  const enjoy = wears.filter((w) => w.enjoyment !== null && w.enjoyment !== undefined).map((w) => w.enjoyment);
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  const recent = wears.filter((w) => daysSince(w.worn_on) <= 365).length;
+  let base;
+  if (f.sentiment !== null && f.sentiment !== undefined) base = enjoy.length ? 0.7 * f.sentiment + 0.3 * mean(enjoy) : f.sentiment;
+  else if (enjoy.length) base = mean(enjoy);
+  else if (wears.length) base = 0;
+  else return null;
+  const bonus = base >= 0 ? Math.min(1, 0.35 * Math.log2(1 + recent)) : 0;
+  return Math.round((base + bonus) * 1000) / 1000;
+}
+function noteItems(f) {
+  const seen = new Set(), out = [];
+  for (const [layer, w] of Object.entries(LAYER_WEIGHTS)) for (const n of f[layer] || []) {
+    const k = noteKey(n); if (k && !seen.has(k)) { seen.add(k); out.push([k, n, w]); }
+  }
+  return out;
+}
+const accordItems = (f) => (f.accords || []).map((a) => [String(a.name).toLowerCase(), String(a.name).toLowerCase(), Math.max(0.2, Number(a.strength) || 1)]);
+function affinities(scored, items) {
+  const acc = new Map();
+  for (const [f, s] of scored) for (const [k, label, w] of items(f)) {
+    let e = acc.get(k); if (!e) acc.set(k, (e = { sum: 0, weight: 0, labels: new Map(), frags: [] }));
+    e.sum += w * s; e.weight += w; e.labels.set(label, (e.labels.get(label) || 0) + 1);
+    e.frags.push({ id: f.id, name: f.name, brand: f.brand, score: s });
+  }
+  const out = new Map();
+  for (const [k, e] of acc) {
+    const label = [...e.labels].sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0][0];
+    out.set(k, { key: k, label: label[0].toUpperCase() + label.slice(1), affinity: +(e.sum / (e.weight + PRIOR)).toFixed(3),
+      confidence: +(e.weight / (e.weight + PRIOR)).toFixed(3), count: e.frags.length, fragrances: e.frags.sort((a, b) => b.score - a.score) });
+  }
+  return out;
+}
+class TasteModel {
+  constructor(frags, wears) {
+    const byF = new Map();
+    for (const w of wears) { if (!byF.has(w.fragrance_id)) byF.set(w.fragrance_id, []); byF.get(w.fragrance_id).push(w); }
+    this.byF = byF; this.scores = new Map(); this.scored = [];
+    for (const f of frags) { const s = fragranceScore(f, byF.get(f.id) || []); if (s !== null) { this.scores.set(f.id, s); this.scored.push([f, s]); } }
+    this.notes = affinities(this.scored, noteItems);
+    this.accords = affinities(this.scored, accordItems);
+  }
+  get ready() { return this.scored.length >= MIN_SCORED; }
+  noteAffinity(f) {
+    const out = {};
+    for (const [k, label] of noteItems(f)) { const a = this.notes.get(k); if (a && a.count >= 2) out[label] = a.affinity; }
+    return out;
+  }
+  predict(f) {
+    if (!this.scored.length) return null;
+    const parts = [];
+    const self = (a) => a.count === 1 && a.fragrances[0].id === f.id;
+    const ni = noteItems(f);
+    for (const [k, , w] of ni) { const a = this.notes.get(k); if (a && !self(a)) parts.push([a.label, "note", a.affinity, w * a.confidence]); }
+    for (const [k, , w] of accordItems(f)) { const a = this.accords.get(k); if (a && !self(a)) parts.push([a.label, "accord", a.affinity, 0.8 * w * a.confidence]); }
+    if (!parts.length) return null;
+    const tw = parts.reduce((s, p) => s + p[3], 0);
+    const pred = parts.reduce((s, p) => s + p[2] * p[3], 0) / tw;
+    const certainty = Math.min(1, tw / 2);
+    const match = Math.round(50 + 50 * Math.max(-1, Math.min(1, pred / 1.5)) * certainty);
+    const pros = parts.filter((p) => p[2] > 0.15).sort((a, b) => b[2] * b[3] - a[2] * a[3]).slice(0, 4);
+    const cons = parts.filter((p) => p[2] < -0.15).sort((a, b) => a[2] * a[3] - b[2] * b[3]).slice(0, 4);
+    return { match, certainty, verdict: verdict(match, certainty), pros: pros.map((p) => p[0]), cons: cons.map((p) => p[0]) };
+  }
+}
+function verdict(m, c) {
+  if (c < 0.35) return "Not enough overlap with your collection to tell";
+  if (m >= 78) return "Very likely your style"; if (m >= 62) return "Probably a good fit";
+  if (m >= 45) return "Could go either way"; if (m >= 30) return "Probably not for you";
+  return "Has a lot of what you dislike";
+}
+const ranked = (aff, pos, n) => [...aff.values()].filter((a) => (pos ? a.affinity >= LIKE : a.affinity <= -LIKE))
+  .sort((a, b) => (pos ? b.affinity - a.affinity : a.affinity - b.affinity) || b.count - a.count).slice(0, n);
+function groupStats(model, frags, field, min = 1) {
+  const counts = new Map(), sums = new Map();
+  const vals = (f) => (Array.isArray(f[field]) ? f[field] : [f[field]]).filter(Boolean);
+  for (const f of frags) for (const v of vals(f)) counts.set(v, (counts.get(v) || 0) + 1);
+  for (const [f, s] of model.scored) for (const v of vals(f)) { if (!sums.has(v)) sums.set(v, []); sums.get(v).push(s); }
+  return [...counts].filter(([, c]) => c >= min).map(([k, c]) => {
+    const s = sums.get(k) || [];
+    return { label: k, count: c, rated: s.length, avg: s.length ? s.reduce((a, b) => a + b, 0) / s.length : null };
+  }).sort((a, b) => (b.avg ?? -9) - (a.avg ?? -9) || b.count - a.count);
+}
+const joinWords = (w) => { w = w.map((x) => x.toLowerCase()); return w.length <= 1 ? w.join("") : w.slice(0, -1).join(", ") + " and " + w.at(-1); };
+function buildReport(frags, wears) {
+  const model = new TasteModel(frags, wears);
+  const byId = new Map(frags.map((f) => [f.id, f]));
+  const likedN = ranked(model.notes, true, 12), dislikedN = ranked(model.notes, false, 10);
+  const likedA = ranked(model.accords, true, 8), dislikedA = ranked(model.accords, false, 6);
+  const polarizing = [...model.notes.values()].filter((a) => { const s = a.fragrances.map((x) => x.score); return s.length >= 2 && Math.max(...s) >= 1 && Math.min(...s) <= -1; });
+  const families = groupStats(model, frags, "family"), brands = groupStats(model, frags, "brand"), perfumers = groupStats(model, frags, "perfumers", 2);
+  const summary = [];
+  if (!model.ready) {
+    const need = MIN_SCORED - model.scored.length;
+    summary.push(`Rate or log wears for ${need} more fragrance${need === 1 ? "" : "s"} to unlock your scent profile.`);
+  } else {
+    if (likedA.length) summary.push(`Your taste leans ${joinWords(likedA.slice(0, 3).map((a) => a.label))}.`);
+    if (likedN.length) summary.push(`The notes you keep coming back to: ${joinWords(likedN.slice(0, 5).map((a) => a.label))}.`);
+    const fam = families.find((f) => f.avg !== null && f.avg >= 1 && f.rated >= 2);
+    if (fam) summary.push(`${fam.label} fragrances are your safest bet.`);
+    const dis = [...dislikedA.slice(0, 2), ...dislikedN.slice(0, 3)].map((a) => a.label);
+    if (dis.length) summary.push(`You tend to steer away from ${joinWords(dis)}.`);
+    if (!summary.length) summary.push("No strong patterns yet. Keep rating and logging wears.");
+  }
+  // months
+  const months = []; const now = new Date();
+  for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); }
+  const monthly = months.map((m) => ({ month: m, count: wears.filter((w) => String(w.worn_on).startsWith(m)).length }));
+  const wc = new Map(), comp = new Map();
+  for (const w of wears) { wc.set(w.fragrance_id, (wc.get(w.fragrance_id) || 0) + 1); comp.set(w.fragrance_id, (comp.get(w.fragrance_id) || 0) + (w.compliments || 0)); }
+  const brief = (id) => { const f = byId.get(id); return { id, name: f.name, brand: f.brand }; };
+  const mostWorn = [...wc].filter(([id]) => byId.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id, c]) => ({ ...brief(id), count: c }));
+  const complimented = [...comp].filter(([id, c]) => c > 0 && byId.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, c]) => ({ ...brief(id), compliments: c }));
+  const neglected = frags.filter((f) => WEARABLE.has(f.status) && (f.last_worn === null || daysSince(f.last_worn) > 90))
+    .sort((a, b) => (a.last_worn !== null) - (b.last_worn !== null) || String(a.last_worn).localeCompare(String(b.last_worn))).slice(0, 10);
+  // weather (logged) — falls back to season from the date
+  const SEASON = ["Winter", "Winter", "Spring", "Spring", "Spring", "Summer", "Summer", "Summer", "Autumn", "Autumn", "Autumn", "Winter"];
+  const wx = new Map();
+  for (const w of wears) {
+    const f = byId.get(w.fragrance_id); if (!f) continue;
+    const key = w.weather || SEASON[new Date(String(w.worn_on).slice(0, 10) + "T00:00:00").getMonth()];
+    let e = wx.get(key); if (!e) wx.set(key, (e = { wears: 0, acc: new Map() }));
+    e.wears++;
+    for (const a of f.accords || []) e.acc.set(a.name, (e.acc.get(a.name) || 0) + (Number(a.strength) || 1));
+  }
+  const weather = [...wx].sort((a, b) => b[1].wears - a[1].wears).map(([k, e]) => ({ label: k, wears: e.wears, accords: [...e.acc].sort((a, b) => b[1] - a[1]).slice(0, 4).map((x) => x[0]) }));
+  const occ = new Map();
+  for (const w of wears) if (w.occasion && byId.has(w.fragrance_id)) {
+    if (!occ.has(w.occasion)) occ.set(w.occasion, new Map());
+    const m = occ.get(w.occasion); m.set(w.fragrance_id, (m.get(w.fragrance_id) || 0) + 1);
+  }
+  const occasions = [...occ].map(([o, m]) => ({ occasion: o, wears: [...m.values()].reduce((a, b) => a + b, 0), top: [...m].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => brief(id)) }))
+    .sort((a, b) => b.wears - a.wears);
+  const wishlist = frags.filter((f) => f.status === "wishlist").map((f) => ({ ...brief(f.id), p: model.predict(f) })).filter((x) => x.p).sort((a, b) => b.p.match - a.p.match);
+  return {
+    model, summary, likedN, dislikedN, likedA, dislikedA, polarizing: polarizing.slice(0, 10), families, brands, perfumers,
+    monthly, mostWorn, complimented, neglected, weather, occasions, wishlist,
+    totals: {
+      fragrances: frags.length, owned: frags.filter((f) => f.status === "owned").length, wears: wears.length,
+      last30: wears.filter((w) => daysSince(w.worn_on) < 30).length,
+      unique90: new Set(wears.filter((w) => daysSince(w.worn_on) < 90).map((w) => w.fragrance_id)).size,
+    },
+  };
+}
+
+/* ============================================================ state + data */
+const S = {
+  db: null, sample: null, canWrite: false, status: "loading", // loading | ready | nodb
+  fragrances: [], wears: [], profile: null, loaded: { f: false, w: false },
+  filters: { q: "", status: "all", sentiment: "any", sort: local.get("sort") || "recent" },
+  model: null,
+};
+function enriched() {
+  const byF = new Map();
+  for (const w of S.wears) { const a = byF.get(w.fragrance_id) || []; a.push(w); byF.set(w.fragrance_id, a); }
+  const frags = S.fragrances.map((f) => {
+    const ws = byF.get(f.id) || [];
+    const last = ws.reduce((m, w) => (!m || w.worn_on > m ? w.worn_on : m), null);
+    return { ...f, wear_count: ws.length, last_worn: last };
+  });
+  S.model = new TasteModel(frags, S.wears);
+  for (const f of frags) { f.score = S.model.scores.get(f.id) ?? null; f.prediction = f.status === "wishlist" ? S.model.predict(f) : null; }
+  return frags;
+}
+const findFrag = (id) => enriched().find((f) => f.id === id);
+const DETAIL_KEYS = ["name", "brand", "year", "concentration", "gender", "family", "perfumers", "accords", "top_notes", "middle_notes", "base_notes", "notes", "description", "longevity", "sillage", "seasons"];
+function cleanDetails(d) {
+  const arr = (x) => (Array.isArray(x) ? x.map((s) => String(s).trim()).filter(Boolean) : []);
+  return {
+    name: String(d.name || "").trim(), brand: String(d.brand || "").trim(),
+    year: Number.isFinite(Number(d.year)) && d.year ? Number(d.year) : null,
+    concentration: d.concentration || null, gender: d.gender || null, family: d.family || null,
+    perfumers: arr(d.perfumers),
+    accords: (Array.isArray(d.accords) ? d.accords : []).filter((a) => a && a.name)
+      .map((a) => ({ name: String(a.name).toLowerCase().trim(), strength: Math.max(0, Math.min(1, Number(a.strength) || 1)) })),
+    top_notes: arr(d.top_notes), middle_notes: arr(d.middle_notes), base_notes: arr(d.base_notes), notes: arr(d.notes),
+    description: d.description || null, longevity: d.longevity || null, sillage: d.sillage || null, seasons: arr(d.seasons),
+  };
+}
+const findDuplicate = (d) => S.fragrances.find((f) => fold(f.brand).trim() === fold(d.brand).trim() && fold(f.name).trim() === fold(d.name).trim());
+
+async function addFragrance(details, personal) {
+  const now = new Date().toISOString();
+  const ref = await S.db.collection("fragrances").add({ ...cleanDetails(details), source: details.source || "claude", status: "owned",
+    sentiment: null, bottle_ml: null, personal_notes: null, ...personal, created_at: now, updated_at: now });
+  return ref.id;
+}
+async function updateFragrance(id, patch) {
+  await S.db.doc(`fragrances/${id}`).update({ ...patch, updated_at: new Date().toISOString() });
+}
+async function deleteFragrance(id) {
+  for (const w of S.wears.filter((w) => w.fragrance_id === id)) await S.db.doc(`wears/${w.id}`).delete();
+  await S.db.doc(`fragrances/${id}`).delete();
+}
+async function addWear(w) {
+  const ref = await S.db.collection("wears").add({ worn_on: todayISO(), occasion: null, weather: null, sprays: null, enjoyment: null,
+    compliments: 0, notes: null, ...w, created_at: new Date().toISOString() });
+  return ref.id;
+}
+const deleteWear = (id) => S.db.doc(`wears/${id}`).delete();
+
+/* ============================================================ Claude lookups */
+const LOOKUP_SHAPE = `{"found": true, "confidence": "high", "name": "Sauvage", "brand": "Dior", "year": 2015, "concentration": "Eau de Toilette",
+ "gender": "Men", "family": "Aromatic Fougere", "perfumers": ["François Demachy"],
+ "accords": [{"name": "fresh spicy", "strength": 1.0}, {"name": "amber", "strength": 0.72}],
+ "top_notes": ["Calabrian bergamot", "Pepper"], "middle_notes": ["Sichuan Pepper", "Lavender"], "base_notes": ["Ambroxan", "Cedar"],
+ "notes": [], "description": "One or two sentences on how it smells.", "longevity": "long lasting", "sillage": "strong",
+ "seasons": ["spring", "summer", "day"], "match_note": null, "alternatives": ["Dior Sauvage Elixir", "Dior Sauvage Eau de Parfum"]}`;
+const LOOKUP_RULES = `You are the lookup service of a fragrance collector's app. Identify each perfume the user typed and give its composition as Fragrantica lists it.
+Rules:
+- Text may be misspelled, abbreviated or a nickname (BR540, TV, "the blue Chanel"). If several perfumes fit (flankers, EDT vs EDP), choose the original or most popular unless the text says otherwise, explain the choice in match_note, and put the others in alternatives as "Brand Name" strings.
+- Use Fragrantica's main accords, strongest first, with strength 0-1 relative to the strongest (= 1.0), and its top/middle/base notes with Fragrantica's spelling. Use "notes" only when the pyramid is flat.
+- Set confidence to "high" only when you know this exact perfume's pyramid well. If you don't recognize the perfume, set found to false, leave the lists empty and say why in match_note. Never invent a composition.
+- Use null or [] for anything you are unsure of.`;
+
+async function lookupMany(queries) {
+  const r = await S.sample.json(`${LOOKUP_RULES}\n\nThe user typed this list, one perfume per line:\n${queries.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\nReply with only a JSON array with one object per line, in the same order, each shaped like:\n${LOOKUP_SHAPE}`);
+  if (!Array.isArray(r)) throw { code: "invalid_json", message: "Unexpected reply" };
+  return r;
+}
+function sampleError(e) {
+  switch (e?.code) {
+    case "not_granted": case "sampling_disabled": case "not_declared": case "capability_disabled":
+      return "Claude isn't allowed for this page. Allow it from the artifact's Permissions menu to look fragrances up.";
+    case "rate_limited": return "You've hit your Claude usage limit for now. Try again in a little while, or enter it manually.";
+    case "refused": return "Claude declined that request. Try rephrasing the name.";
+    case "invalid_json": case "empty_completion": return "Claude's answer came back garbled. Try again.";
+    case "session_expired": return "Your Claude session expired. Sign in again.";
+    case "cancelled": return "Stopped.";
+    default: return "Couldn't reach Claude just now. Try again.";
+  }
+}
+
+/* ============================================================ shared rendering */
+function labelArt(f, extra = "") {
+  const initials = (f.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const c1 = accordColor(f.accords?.[0]?.name || f.name), c2 = accordColor(f.accords?.[1]?.name || f.brand), c3 = accordColor(f.accords?.[2]?.name || f.family);
+  return `<div class="label-art" style="background:linear-gradient(135deg, ${c1}, ${c2} 60%, ${c3})"><span class="mono">${esc(initials)}</span>${extra}</div>`;
+}
+const sentimentPill = (s) => (s === null || s === undefined ? `<span class="pill">Unrated</span>` : `<span class="pill s${s}">${s === 2 ? "♥ " : ""}${SENT[s]}</span>`);
+const strip = (acc) => (acc?.length ? `<div class="strip" aria-hidden="true">${acc.slice(0, 5).map((a) => `<span style="flex:${Math.max(0.15, a.strength)};background:${accordColor(a.name)}"></span>`).join("")}</div>` : "");
+const accordBars = (acc) => (acc?.length ? `<div class="accords">${acc.map((a) => `<div class="accord"><div class="fill" style="width:${Math.round(a.strength * 100)}%;background:${accordColor(a.name)}"></div><span class="lbl">${esc(a.name)}</span></div>`).join("")}</div>` : `<p class="subtle small">No accords recorded.</p>`);
+function noteChips(notes, aff) {
+  if (!notes?.length) return "";
+  return `<div class="chips">${notes.map((n) => {
+    const a = aff?.(n); const cls = a === undefined || a === null ? "" : a >= LIKE ? "pos" : a <= -LIKE ? "neg" : "";
+    return `<span class="chip ${cls}"${cls ? ` title="Your affinity ${signed(a)}"` : ""}>${esc(n)}</span>`;
+  }).join("")}</div>`;
+}
+function pyramid(d, aff) {
+  const html = [["Top notes", d.top_notes], ["Heart notes", d.middle_notes], ["Base notes", d.base_notes], ["Notes", d.notes]]
+    .filter(([, n]) => n?.length).map(([t, n]) => `<div><h4>${t}</h4>${noteChips(n, aff)}</div>`).join("");
+  return html ? `<div class="pyramid">${html}</div>` : `<p class="subtle small">No notes recorded.</p>`;
+}
+function facts(d) {
+  const bits = [d.year && ["Launched", d.year], d.concentration && ["Type", d.concentration], d.gender && ["For", d.gender], d.family && ["Family", d.family],
+    d.perfumers?.length && ["Nose", d.perfumers.join(", ")], d.longevity && ["Longevity", d.longevity], d.sillage && ["Sillage", d.sillage],
+    d.seasons?.length && ["Best for", d.seasons.join(", ")]].filter(Boolean);
+  return `<div class="facts">${bits.map(([k, v]) => `<span>${k}: <b>${esc(v)}</b></span>`).join("")}</div>`;
+}
+function predictionBox(p, title) {
+  if (!p) return "";
+  return `<div class="predict"><div class="small subtle">${esc(title)}</div>
+    <div class="row"><span class="big">${p.match}%</span><span>${esc(p.verdict)}</span></div>
+    ${p.pros.length ? `<div><div class="small subtle">You tend to like</div>${noteChips(p.pros, () => 1)}</div>` : ""}
+    ${p.cons.length ? `<div><div class="small subtle">You tend to dislike</div>${noteChips(p.cons, () => -1)}</div>` : ""}</div>`;
+}
+function sentimentRadios(name, value) {
+  return `<div class="seg" role="radiogroup">${SENTIMENTS.map((s) => `<label><input type="radio" name="${name}" value="${s.v}" ${value === s.v ? "checked" : ""}>${s.v === 2 ? "♥ " : ""}${s.label}</label>`).join("")}<label><input type="radio" name="${name}" value="" ${value === null || value === undefined ? "checked" : ""}>Not rated</label></div>`;
+}
+const statusSelect = (name, v, id) => `<select name="${name}" id="${id}">${Object.entries(STATUSES).map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+const readSentiment = (form, name) => { const v = form.querySelector(`input[name="${name}"]:checked`)?.value; return v === undefined || v === "" ? null : Number(v); };
+
+/* ============================================================ router */
+const views = { collection: renderCollection, add: renderAdd, wear: renderWear, insights: renderInsights };
+const current = () => (views[location.hash.slice(1)] ? location.hash.slice(1) : "collection");
+function route() {
+  const v = current();
+  $$(".view").forEach((el) => (el.hidden = el.id !== `view-${v}`));
+  $$(".tabs a").forEach((a) => a.classList.toggle("active", a.dataset.view === v));
+  views[v]();
+}
+window.addEventListener("hashchange", route);
+let refreshTimer;
+function onData() { clearTimeout(refreshTimer); refreshTimer = setTimeout(() => { const v = current(); if (v === "collection") drawGrid(); else if (v === "insights") renderInsights(); else if (v === "wear") drawWearHistory(); }, 60); }
+
+function gate(root) {
+  if (S.status === "loading") { root.innerHTML = `<div class="loading"><span class="spinner"></span>Opening your collection…</div>`; return false; }
+  if (S.status === "nodb") {
+    root.innerHTML = `<div class="card empty"><h2>Open Sillage in Claude</h2><p class="subtle">Your collection is stored with this page on claude.ai. Open it while signed in to Claude to see and add fragrances.</p></div>`;
+    return false;
+  }
+  return true;
+}
+
+/* ============================================================ collection */
+function renderCollection() {
+  const root = $("#view-collection");
+  if (!gate(root)) return;
+  root.innerHTML = `
+    <div class="view-head"><div><h1>Your collection</h1><div class="subtle" id="count"></div></div>
+      ${S.canWrite ? `<a class="btn primary" href="#add">+ Add fragrance</a>` : ""}</div>
+    <div id="example-banner"></div>
+    <div class="filters">
+      <input type="search" id="f-q" placeholder="Search name, brand, note, accord, perfumer…" aria-label="Search" value="${esc(S.filters.q)}">
+      <select id="f-status" aria-label="Status"><option value="all">All statuses</option><option value="owned">Owned</option><option value="samples">Samples & decants</option><option value="wishlist">Wishlist</option><option value="tried">Tried</option><option value="sold">Sold</option></select>
+      <select id="f-sent" aria-label="Rating"><option value="any">Any rating</option>${SENTIMENTS.map((s) => `<option value="${s.v}">${s.label}</option>`).join("")}<option value="unrated">Unrated</option></select>
+      <select id="f-sort" aria-label="Sort"><option value="recent">Recently added</option><option value="name">Name</option><option value="brand">Brand</option><option value="worn">Most worn</option><option value="lastworn">Recently worn</option><option value="score">Your score</option><option value="match">Predicted match</option></select>
+    </div>
+    <div id="grid"></div>`;
+  $("#f-status").value = S.filters.status; $("#f-sent").value = S.filters.sentiment; $("#f-sort").value = S.filters.sort;
+  $("#f-q").oninput = (e) => { S.filters.q = e.target.value; drawGrid(); };
+  $("#f-status").onchange = (e) => { S.filters.status = e.target.value; drawGrid(); };
+  $("#f-sent").onchange = (e) => { S.filters.sentiment = e.target.value; drawGrid(); };
+  $("#f-sort").onchange = (e) => { S.filters.sort = e.target.value; local.set("sort", e.target.value); drawGrid(); };
+  $("#grid").onclick = onGridClick;
+  drawGrid();
+}
+function drawGrid() {
+  const grid = $("#grid"); if (!grid) return;
+  const all = enriched();
+  const wears = S.wears.length;
+  $("#count").textContent = all.length ? `${all.length} fragrance${all.length === 1 ? "" : "s"} · ${wears} wear${wears === 1 ? "" : "s"} logged` : "";
+  const ex = all.filter((f) => f.example).length;
+  $("#example-banner").innerHTML = ex && S.canWrite ? `<div class="notice warn row between" style="margin-bottom:16px"><span>${ex} example fragrance${ex === 1 ? " is" : "s are"} loaded so you can see how Sillage works. Add your own, then remove these.</span><button class="small" id="rm-examples">Remove examples</button></div>` : "";
+  if ($("#rm-examples")) armed($("#rm-examples"), "Click again to remove", async () => {
+    for (const f of S.fragrances.filter((f) => f.example)) await deleteFragrance(f.id);
+    for (const w of S.wears.filter((w) => w.example)) await deleteWear(w.id).catch(() => {});
+    if (S.profile?.example) await S.db.doc("profile/latest").delete();
+    toast("Examples removed");
+  });
+  if (!all.length) {
+    grid.innerHTML = `<div class="card empty"><h2>Start your collection</h2><p class="subtle">Type any fragrance name and Sillage fills in its accords and notes pyramid.</p>${S.canWrite ? `<a class="btn primary" href="#add">Add your first fragrance</a>` : ""}</div>`;
+    return;
+  }
+  const { q, status, sentiment, sort } = S.filters;
+  const needle = q.trim().toLowerCase();
+  let items = all.filter((f) => {
+    if (status !== "all" && (status === "samples" ? !["sample", "decant"].includes(f.status) : f.status !== status)) return false;
+    if (sentiment === "unrated" ? f.sentiment !== null && f.sentiment !== undefined : sentiment !== "any" && f.sentiment !== Number(sentiment)) return false;
+    if (!needle) return true;
+    return [f.name, f.brand, f.family, ...(f.perfumers || []), ...(f.accords || []).map((a) => a.name), ...(f.top_notes || []), ...(f.middle_notes || []), ...(f.base_notes || []), ...(f.notes || [])].join(" ").toLowerCase().includes(needle);
+  });
+  const by = {
+    recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), name: (a, b) => a.name.localeCompare(b.name),
+    brand: (a, b) => (a.brand || "").localeCompare(b.brand || "") || a.name.localeCompare(b.name), worn: (a, b) => b.wear_count - a.wear_count,
+    lastworn: (a, b) => String(b.last_worn || "").localeCompare(String(a.last_worn || "")), score: (a, b) => (b.score ?? -9) - (a.score ?? -9),
+    match: (a, b) => (b.prediction?.match ?? -1) - (a.prediction?.match ?? -1),
+  }[sort];
+  items.sort(by);
+  grid.innerHTML = items.length ? `<div class="grid">${items.map(card).join("")}</div>` : `<div class="empty subtle">Nothing matches these filters.</div>`;
+}
+function card(f) {
+  const tl = `<div class="tl"><span class="pill">${esc(STATUSES[f.status] || f.status)}</span>${f.example ? `<span class="pill example">Example</span>` : ""}</div>`;
+  const tr = f.prediction ? `<div class="tr"><span class="pill match" title="${esc(f.prediction.verdict)}">${f.prediction.match}% match</span></div>` : "";
+  const worn = f.status === "wishlist" ? "" : `<span class="small subtle">${f.wear_count ? `${f.wear_count}× · ${relDays(f.last_worn)}` : "never worn"}</span>`;
+  const btn = S.canWrite && WEARABLE.has(f.status) ? `<div><button class="small" data-wear="${f.id}">Wore it today</button></div>` : "";
+  return `<article class="frag" data-id="${f.id}" tabindex="0" role="button" aria-label="${esc(fullName(f))}">
+    ${labelArt(f, tl + tr)}
+    <div class="body"><div class="subtle small">${esc(f.brand)}</div><div class="name">${esc(f.name)}</div>
+      <div class="meta">${esc([f.year, f.concentration, f.family].filter(Boolean).join(" · "))}</div>
+      ${strip(f.accords)}<div class="foot">${sentimentPill(f.sentiment)}${worn}</div>${btn}</div></article>`;
+}
+function onGridClick(e) {
+  const b = e.target.closest("button[data-wear]");
+  if (b) { e.stopPropagation(); quickWear(b.dataset.wear); return; }
+  const c = e.target.closest(".frag"); if (c) openDetail(c.dataset.id);
+}
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList?.contains("frag")) { e.preventDefault(); openDetail(e.target.dataset.id); }
+});
+async function quickWear(id) {
+  const f = S.fragrances.find((x) => x.id === id);
+  try {
+    const wid = await addWear({ fragrance_id: id });
+    toast(`Logged ${f?.name || "wear"} for today`, { action: "Undo", onAction: () => deleteWear(wid) });
+  } catch (err) { toast("Couldn't save the wear. " + (err?.message || ""), { error: true }); }
+}
+
+/* ============================================================ detail */
+let detailId = null;
+function openDetail(id, edit = false) {
+  const f = findFrag(id); if (!f) return;
+  detailId = id;
+  const dlg = $("#detail"), body = $("#detail-body");
+  body.innerHTML = edit ? detailEdit(f) : detailView(f);
+  if (!dlg.open) dlg.showModal();
+  wireDetail(f);
+}
+$("#detail").addEventListener("click", (e) => { if (e.target.id === "detail") e.target.close(); });
+$("#detail").addEventListener("close", () => { detailId = null; });
+
+function detailView(f) {
+  const aff = S.model.noteAffinity(f);
+  const pred = f.status === "wishlist" || f.sentiment === null || f.sentiment === undefined ? S.model.predict(f) : null;
+  const ws = S.wears.filter((w) => w.fragrance_id === f.id).sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on)));
+  const ro = !S.canWrite;
+  return `<div class="detail">
+    <button class="ghost close-x" data-close aria-label="Close">✕</button>
+    <div class="hero">${labelArt(f)}<div>
+      <div class="subtle">${esc(f.brand)}</div><h1>${esc(f.name)}</h1>${facts(f)}
+      <div class="small subtle" style="margin-top:6px"><a href="${esc(fragranticaSearch(f))}" target="_blank" rel="noopener noreferrer">Check on Fragrantica ↗</a>${f.example ? " · example entry" : f.source === "manual" ? " · entered manually" : " · details from Claude"}</div>
+    </div></div>
+    ${ro ? `<div class="row">${sentimentPill(f.sentiment)}<span class="pill">${esc(STATUSES[f.status])}</span></div>` : `
+    <form class="card" id="personal">
+      <div class="form-grid">
+        <label class="field">Status ${statusSelect("status", f.status, "d-status")}</label>
+        <label class="field">Bottle size (ml) <input id="d-ml" name="bottle_ml" type="number" min="0" step="any" value="${f.bottle_ml ?? ""}"></label>
+        <div class="field wide">How do you feel about it? ${sentimentRadios("sentiment", f.sentiment)}</div>
+        <label class="field wide">Your notes <textarea id="d-notes" name="personal_notes" placeholder="Performance on your skin, memories, batch code…">${esc(f.personal_notes)}</textarea></label>
+      </div>
+      <div class="row end small subtle" id="save-state" style="margin-top:6px">Changes save automatically</div>
+    </form>`}
+    ${predictionBox(pred, "Will you like it?")}
+    <div class="two-col">
+      <div class="card"><h3 style="margin-bottom:10px">Main accords</h3>${accordBars(f.accords)}</div>
+      <div class="card"><h3 style="margin-bottom:10px">Notes</h3>${pyramid(f, (n) => aff[n])}
+        <p class="small subtle" style="margin:10px 0 0">Blue and red outlines mark notes you tend to love and avoid.</p></div>
+    </div>
+    ${f.description ? `<p class="subtle" style="margin:0">${esc(f.description)}</p>` : ""}
+    <div class="card">
+      <div class="card-head"><h3>Wear history</h3><span class="subtle small">${ws.length} wear${ws.length === 1 ? "" : "s"}</span></div>
+      ${ro ? "" : wearForm(f.id, "d")}
+      <ul class="wear-list" style="margin-top:12px">${ws.map((w) => wearItem(w, false)).join("") || `<li class="subtle">No wears yet.</li>`}</ul>
+    </div>
+    ${ro ? "" : `<div class="row between"><button data-act="edit">Edit details</button><button class="danger" data-act="delete">Delete</button></div>`}
+  </div>`;
+}
+function wearItem(w, showName = true) {
+  const f = S.fragrances.find((x) => x.id === w.fragrance_id);
+  const bits = [w.occasion, w.weather, w.sprays ? `${w.sprays} sprays` : null, w.compliments ? `${w.compliments} compliment${w.compliments === 1 ? "" : "s"}` : null,
+    w.enjoyment !== null && w.enjoyment !== undefined ? SENT[w.enjoyment] : null].filter(Boolean);
+  return `<li><span class="when">${fmtDate(w.worn_on)}</span><span class="what">${showName && f ? `<b class="link" data-open="${f.id}">${esc(f.name)}</b> <span class="subtle">${esc(f.brand)}</span> · ` : ""}${esc(bits.join(" · "))}${w.notes ? ` — ${esc(w.notes)}` : ""}</span>
+    ${S.canWrite ? `<button class="ghost small" data-del-wear="${w.id}" aria-label="Delete this wear">✕</button>` : ""}</li>`;
+}
+function wearForm(fragranceId, p) {
+  const picker = fragranceId ? "" : `<label class="field wide">Fragrance <select id="${p}-frag" name="fragrance_id" required><option value="">Choose from your collection…</option>${enriched().filter((f) => WEARABLE.has(f.status)).sort((a, b) => fullName(a).localeCompare(fullName(b))).map((f) => `<option value="${f.id}">${esc(fullName(f))}</option>`).join("")}</select></label>`;
+  return `<form class="wear-form" data-fid="${fragranceId || ""}">
+    <div class="form-grid">${picker}
+      <label class="field">Date <input id="${p}-date" type="date" name="worn_on" value="${todayISO()}" max="${todayISO()}" required></label>
+      <label class="field">Occasion <select id="${p}-occ" name="occasion"><option value="">—</option>${OCCASIONS.map((o) => `<option>${o}</option>`).join("")}</select></label>
+      <label class="field">Weather <select id="${p}-wx" name="weather"><option value="">—</option>${WEATHER.map((o) => `<option>${o}</option>`).join("")}</select></label>
+      <label class="field">Sprays <input id="${p}-sprays" type="number" name="sprays" min="0" max="50" placeholder="—"></label>
+      <label class="field">Compliments <input id="${p}-comp" type="number" name="compliments" min="0" value="0"></label>
+      <div class="field wide">How did you enjoy it? ${sentimentRadios(`${p}-enjoy`, null)}</div>
+      <label class="field wide">Notes <input id="${p}-wnotes" name="notes" placeholder="Longevity, reactions, layering…"></label>
+    </div>
+    <div class="row end" style="margin-top:10px"><button class="primary" type="submit">Log wear</button></div></form>`;
+}
+async function submitWear(form, p) {
+  const fd = new FormData(form);
+  const fid = form.dataset.fid || fd.get("fragrance_id");
+  if (!fid) { toast("Choose a fragrance first", { error: true }); return false; }
+  const n = (k) => (fd.get(k) === "" || fd.get(k) === null ? null : Number(fd.get(k)));
+  await addWear({ fragrance_id: fid, worn_on: fd.get("worn_on") || todayISO(), occasion: fd.get("occasion") || null, weather: fd.get("weather") || null,
+    sprays: n("sprays"), compliments: n("compliments") || 0, enjoyment: readSentiment(form, `${p}-enjoy`), notes: fd.get("notes") || null });
+  return true;
+}
+function wireDetail(f) {
+  const body = $("#detail-body"), dlg = $("#detail");
+  $$("[data-close]", body).forEach((b) => (b.onclick = () => dlg.close()));
+  const personal = $("#personal", body);
+  if (personal) {
+    let t;
+    const save = async () => {
+      const fd = new FormData(personal);
+      try {
+        await updateFragrance(f.id, { status: fd.get("status"), sentiment: readSentiment(personal, "sentiment"),
+          bottle_ml: fd.get("bottle_ml") === "" ? null : Number(fd.get("bottle_ml")), personal_notes: fd.get("personal_notes") || null });
+        $("#save-state", body).textContent = "Saved ✓";
+      } catch { $("#save-state", body).textContent = "Couldn't save. Check your connection and try again."; }
+    };
+    personal.addEventListener("change", save);
+    personal.addEventListener("input", (e) => { if (e.target.tagName === "TEXTAREA") { clearTimeout(t); t = setTimeout(save, 700); } });
+  }
+  const wf = $(".wear-form", body);
+  if (wf) wf.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try { if (await submitWear(wf, "d")) { toast("Wear logged"); setTimeout(() => openDetail(f.id), 150); } }
+    catch { toast("Couldn't save the wear.", { error: true }); }
+  });
+  $$("[data-del-wear]", body).forEach((b) => (b.onclick = async () => { await deleteWear(b.dataset.delWear); setTimeout(() => openDetail(f.id), 150); }));
+  const edit = $('[data-act="edit"]', body); if (edit) edit.onclick = () => openDetail(f.id, true);
+  const del = $('[data-act="delete"]', body);
+  if (del) armed(del, `Delete ${f.name} and its wears?`, async () => { await deleteFragrance(f.id); dlg.close(); toast(`Deleted ${f.name}`); });
+  const ef = $("#edit-form", body);
+  if (ef) {
+    ef.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const d = readDetailsForm(ef);
+      if (!d.name) { toast("Name can't be empty", { error: true }); return; }
+      try { await updateFragrance(f.id, cleanDetails(d)); toast("Saved"); setTimeout(() => openDetail(f.id), 150); }
+      catch { toast("Couldn't save.", { error: true }); }
+    });
+    $('[data-act="cancel"]', body).onclick = () => openDetail(f.id);
+  }
+}
+const accordText = (acc) => (acc || []).map((a) => `${a.name}:${Math.round(a.strength * 100)}`).join(", ");
+const parseAccords = (s) => parseList(s).map((p) => { const [name, pct] = p.split(":").map((x) => x.trim()); const n = Number(pct); return { name, strength: pct && Number.isFinite(n) ? Math.max(0, Math.min(1, n / 100)) : 1 }; }).filter((a) => a.name);
+function detailsFields(d = {}, p = "m") {
+  const v = (k) => esc(d[k] ?? ""), l = (k) => esc((d[k] || []).join(", "));
+  return `<div class="form-grid">
+    <label class="field">Name <input id="${p}-name" name="name" value="${v("name")}" required></label>
+    <label class="field">Brand <input id="${p}-brand" name="brand" value="${v("brand")}"></label>
+    <label class="field">Year <input id="${p}-year" name="year" type="number" min="1700" max="2100" value="${v("year")}"></label>
+    <label class="field">Concentration <input id="${p}-conc" name="concentration" value="${v("concentration")}" placeholder="Eau de Parfum"></label>
+    <label class="field">For <input id="${p}-gender" name="gender" value="${v("gender")}" placeholder="Men / Women / Unisex"></label>
+    <label class="field">Family <input id="${p}-family" name="family" value="${v("family")}" placeholder="Amber Woody"></label>
+    <label class="field wide">Perfumer(s) <input id="${p}-perf" name="perfumers" value="${l("perfumers")}" placeholder="Comma separated"></label>
+    <label class="field wide">Top notes <input id="${p}-top" name="top_notes" value="${l("top_notes")}" placeholder="Bergamot, Pink Pepper"></label>
+    <label class="field wide">Heart notes <input id="${p}-mid" name="middle_notes" value="${l("middle_notes")}"></label>
+    <label class="field wide">Base notes <input id="${p}-base" name="base_notes" value="${l("base_notes")}"></label>
+    <label class="field wide">Notes (if no pyramid) <input id="${p}-flat" name="notes" value="${l("notes")}"></label>
+    <label class="field wide">Accords with strength % <input id="${p}-acc" name="accords" value="${esc(accordText(d.accords))}" placeholder="woody:100, amber:80, vanilla:60"></label>
+  </div>`;
+}
+function readDetailsForm(form) {
+  const fd = new FormData(form); const s = (k) => String(fd.get(k) || "").trim();
+  return { name: s("name"), brand: s("brand"), year: s("year") ? Number(s("year")) : null, concentration: s("concentration") || null, gender: s("gender") || null,
+    family: s("family") || null, perfumers: parseList(s("perfumers")), top_notes: parseList(s("top_notes")), middle_notes: parseList(s("middle_notes")),
+    base_notes: parseList(s("base_notes")), notes: parseList(s("notes")), accords: parseAccords(s("accords")) };
+}
+function detailEdit(f) {
+  return `<div class="detail"><button class="ghost close-x" data-close aria-label="Close">✕</button><h2>Edit ${esc(f.name)}</h2>
+    <form id="edit-form" class="card">${detailsFields(f, "e")}<div class="row end" style="margin-top:12px"><button type="button" data-act="cancel">Cancel</button><button class="primary" type="submit">Save</button></div></form></div>`;
+}
+
+/* ============================================================ add */
+let lookupCtl = null, preview = null;
+function renderAdd() {
+  const root = $("#view-add");
+  if (!gate(root)) return;
+  if (!S.canWrite) { root.innerHTML = `<div class="card empty"><h2>View only</h2><p class="subtle">You can browse this collection, but only its owner can add fragrances.</p></div>`; return; }
+  if (root.dataset.ready) return;
+  root.dataset.ready = "1";
+  root.innerHTML = `
+    <div class="view-head"><div><h1>Add a fragrance</h1><div class="subtle">Type a name, even misspelled or a nickname. Claude identifies it and fills in Fragrantica's accords and notes pyramid.</div></div></div>
+    <form class="search-hero" id="lookup-form">
+      <input id="lookup-q" placeholder="e.g. Tom Ford Tobacco Vanille" autocomplete="off" aria-label="Fragrance name" required minlength="2">
+      <button class="primary" type="submit" id="lookup-btn">Look up</button>
+    </form>
+    <div class="examples"><span class="small subtle">Try:</span>${["Baccarat Rouge 540", "Creed Aventus", "tobaco vanile", "Bleu de Chanel EDP", "Le Labo Santal 33"].map((x) => `<button class="small ghost" type="button" data-try="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+    <div id="lookup-out" style="margin-top:18px"></div>
+    <div class="row" style="margin-top:22px;gap:8px"><button class="ghost" id="manual-btn" type="button">Enter one manually</button><button class="ghost" id="bulk-btn" type="button">Add many at once</button></div>
+    <div id="extra-out" style="margin-top:12px"></div>`;
+  $("#lookup-form").onsubmit = (e) => { e.preventDefault(); doLookup($("#lookup-q").value); };
+  $$("[data-try]", root).forEach((b) => (b.onclick = () => { $("#lookup-q").value = b.dataset.try; doLookup(b.dataset.try); }));
+  $("#manual-btn").onclick = () => showManual();
+  $("#bulk-btn").onclick = () => showBulk();
+  const pending = prefillValue;
+  prefillValue = null;
+  if (pending) { $("#lookup-q").value = pending; doLookup(pending); }
+}
+let prefillValue = null; // set by "Look up & add" on a recommendation
+
+async function doLookup(query) {
+  query = String(query || "").trim();
+  if (query.length < 2) return;
+  const out = $("#lookup-out");
+  if (!S.sample) { out.innerHTML = `<div class="notice err">Claude isn't available on this page right now. Enter the fragrance manually instead.</div>`; return; }
+  lookupCtl?.abort(); lookupCtl = new AbortController();
+  out.innerHTML = `<div class="loading"><span class="spinner"></span><span>Looking up “${esc(query)}”… this takes about 10–30 seconds.</span><button class="small ghost" id="stop">Stop</button></div>`;
+  $("#stop").onclick = () => lookupCtl.abort();
+  const btn = $("#lookup-btn"); btn.disabled = true;
+  try {
+    const r = await S.sample.json(`${LOOKUP_RULES}\n\nThe user typed: ${JSON.stringify(query)}\n\nReply with only one JSON object shaped like:\n${LOOKUP_SHAPE}`, { signal: lookupCtl.signal });
+    if (!r || typeof r !== "object" || Array.isArray(r)) throw { code: "invalid_json" };
+    if (r.found === false || !r.name) {
+      out.innerHTML = `<div class="notice err"><b>Couldn't identify “${esc(query)}”.</b> ${esc(r.match_note || "")}<div class="small" style="margin-top:6px">Add the brand, check the spelling, or enter it manually.</div></div>`;
+      return;
+    }
+    preview = { ...cleanDetails(r), source: "claude", confidence: r.confidence, match_note: r.match_note, alternatives: Array.isArray(r.alternatives) ? r.alternatives.slice(0, 5) : [] };
+    out.innerHTML = previewCard(preview);
+    wirePreview();
+  } catch (e) {
+    out.innerHTML = e?.code === "cancelled" ? "" : `<div class="notice err">${esc(sampleError(e))}</div>`;
+  } finally { btn.disabled = false; }
+}
+function previewCard(d) {
+  const dup = findDuplicate(d);
+  const pred = S.model?.predict(d);
+  const conf = d.confidence && d.confidence !== "high" ? `<div class="notice warn">Claude is only ${esc(d.confidence)}-confidence on this composition. <a href="${esc(fragranticaSearch(d))}" target="_blank" rel="noopener noreferrer">Check it on Fragrantica ↗</a> and fix anything that's off.</div>` : "";
+  return `<div class="card">
+    <div class="hero" style="padding-right:0">${labelArt(d)}<div><div class="subtle">${esc(d.brand)}</div><h2>${esc(d.name)}</h2>${facts(d)}
+      <div class="small subtle" style="margin-top:6px">Identified by Claude · <a href="${esc(fragranticaSearch(d))}" target="_blank" rel="noopener noreferrer">verify on Fragrantica ↗</a></div></div></div>
+    <div class="stack" style="margin-top:14px;gap:10px">
+      ${d.match_note ? `<div class="notice">${esc(d.match_note)}</div>` : ""}${conf}
+      ${dup ? `<div class="notice warn">Already in your collection. <span class="link" data-open="${dup.id}">Open it</span></div>` : ""}
+      ${d.alternatives.length ? `<div class="small"><span class="subtle">Not the one?</span> ${d.alternatives.map((a) => `<button type="button" class="small ghost" data-alt="${esc(a)}">${esc(a)}</button>`).join(" ")}</div>` : ""}
+      ${pred ? predictionBox(pred, "Based on your taste so far") : ""}
+    </div>
+    ${d.description ? `<p class="subtle">${esc(d.description)}</p>` : ""}
+    <div class="two-col" style="margin-top:14px"><div><h3 style="margin-bottom:8px">Main accords</h3>${accordBars(d.accords)}</div><div><h3 style="margin-bottom:8px">Notes</h3>${pyramid(d)}</div></div>
+    <form id="save-form" class="card" style="margin-top:16px;background:var(--surface-2);border:0">
+      <div class="form-grid">
+        <label class="field">Status ${statusSelect("status", "owned", "p-status")}</label>
+        <label class="field">Bottle size (ml) <input id="p-ml" name="bottle_ml" type="number" min="0" step="any"></label>
+        <div class="field wide">How do you feel about it? ${sentimentRadios("p-sent", null)}</div>
+        <label class="field wide">Your notes <input id="p-notes" name="personal_notes" placeholder="Optional"></label>
+      </div>
+      <div class="row end" style="margin-top:12px"><button type="button" data-act="fix">Fix details first</button><button class="primary" type="submit">${dup ? "Add anyway" : "Add to collection"}</button></div>
+    </form></div>`;
+}
+function wirePreview() {
+  const out = $("#lookup-out");
+  $$("[data-alt]", out).forEach((b) => (b.onclick = () => { $("#lookup-q").value = b.dataset.alt; doLookup(b.dataset.alt); }));
+  $$("[data-open]", out).forEach((b) => (b.onclick = () => openDetail(b.dataset.open)));
+  $('[data-act="fix"]', out).onclick = () => showManual(preview);
+  $("#save-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const form = e.target, fd = new FormData(form);
+    await saveNew(preview, { status: fd.get("status"), sentiment: readSentiment(form, "p-sent"), bottle_ml: fd.get("bottle_ml") ? Number(fd.get("bottle_ml")) : null, personal_notes: fd.get("personal_notes") || null });
+  };
+}
+async function saveNew(details, personal) {
+  try {
+    const id = await addFragrance(details, personal);
+    $("#lookup-out").innerHTML = ""; $("#extra-out").innerHTML = ""; $("#lookup-q").value = ""; preview = null;
+    toast(`Added ${details.name}`, { action: "View", onAction: () => openDetail(id) });
+    $("#lookup-q").focus();
+  } catch { toast("Couldn't save. Check your connection and try again.", { error: true }); }
+}
+function showManual(d) {
+  $("#lookup-out").innerHTML = "";
+  const box = $("#extra-out");
+  box.innerHTML = `<form class="card" id="manual-form"><h3 style="margin-bottom:12px">${d ? "Check the details" : "Enter a fragrance manually"}</h3>${detailsFields(d || {}, "m")}
+    <div class="form-grid" style="margin-top:12px"><label class="field">Status ${statusSelect("status", "owned", "m-status")}</label><div class="field wide">How do you feel about it? ${sentimentRadios("m-sent", null)}</div></div>
+    <div class="row end" style="margin-top:12px"><button type="button" id="m-cancel">Cancel</button><button class="primary" type="submit">Add to collection</button></div></form>`;
+  $("#m-cancel").onclick = () => (box.innerHTML = "");
+  $("#manual-form").onsubmit = (e) => {
+    e.preventDefault();
+    const det = readDetailsForm(e.target);
+    if (!det.name) { toast("Give it a name", { error: true }); return; }
+    saveNew({ ...det, source: d ? "claude" : "manual" }, { status: new FormData(e.target).get("status"), sentiment: readSentiment(e.target, "m-sent") });
+  };
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function showBulk() {
+  const box = $("#extra-out");
+  box.innerHTML = `<form class="card" id="bulk-form"><h3>Add many at once</h3>
+    <p class="subtle small">One fragrance per line. Claude looks them up in batches of eight and saves each one; duplicates are skipped.</p>
+    <textarea id="bulk-lines" name="lines" rows="8" placeholder="Dior Sauvage EDT&#10;Creed Aventus&#10;MFK Baccarat Rouge 540"></textarea>
+    <div class="form-grid" style="margin-top:12px"><label class="field">Status for all ${statusSelect("status", "owned", "b-status")}</label></div>
+    <div class="row end" style="margin-top:12px"><button class="primary" type="submit">Look up and add</button></div><ul class="bulk-log" id="bulk-log"></ul></form>`;
+  $("#bulk-form").onsubmit = async (e) => {
+    e.preventDefault();
+    if (!S.sample) { toast("Claude isn't available on this page right now.", { error: true }); return; }
+    const fd = new FormData(e.target);
+    const lines = [...new Set(String(fd.get("lines")).split("\n").map((l) => l.trim()).filter((l) => l.length > 1))].slice(0, 80);
+    if (!lines.length) return;
+    const status = fd.get("status"), btn = e.target.querySelector("button[type=submit]"), log = $("#bulk-log");
+    btn.disabled = true;
+    log.innerHTML = lines.map((l, i) => `<li data-i="${i}"><span class="st">·</span><span>${esc(l)}</span></li>`).join("");
+    let ok = 0;
+    for (let start = 0; start < lines.length; start += 8) {
+      const chunk = lines.slice(start, start + 8);
+      chunk.forEach((_, j) => (log.querySelector(`[data-i="${start + j}"] .st`).innerHTML = `<span class="spinner" style="width:13px;height:13px"></span>`));
+      let results;
+      try { results = await lookupMany(chunk); }
+      catch (err) {
+        chunk.forEach((l, j) => (log.querySelector(`[data-i="${start + j}"]`).innerHTML = `<span class="st" style="color:var(--danger)">✗</span><span>${esc(l)} — <span class="subtle">${esc(sampleError(err))}</span></span>`));
+        if (["not_granted", "rate_limited", "sampling_disabled"].includes(err?.code)) break;
+        continue;
+      }
+      for (let j = 0; j < chunk.length; j++) {
+        const li = log.querySelector(`[data-i="${start + j}"]`), r = results[j];
+        if (!r || r.found === false || !r.name) { li.innerHTML = `<span class="st" style="color:var(--danger)">✗</span><span>${esc(chunk[j])} — <span class="subtle">${esc(r?.match_note || "not recognized")}</span></span>`; continue; }
+        const d = cleanDetails(r);
+        if (findDuplicate(d)) { li.innerHTML = `<span class="st subtle">=</span><span>${esc(chunk[j])} — <span class="subtle">already in your collection</span></span>`; continue; }
+        try {
+          await addFragrance({ ...d, source: "claude" }, { status });
+          ok++;
+          li.innerHTML = `<span class="st" style="color:var(--ok)">✓</span><span>${esc(chunk[j])} → <b>${esc(fullName(d))}</b>${r.confidence && r.confidence !== "high" ? ` <span class="subtle">(${esc(r.confidence)} confidence — worth checking)</span>` : ""}</span>`;
+        } catch { li.innerHTML = `<span class="st" style="color:var(--danger)">✗</span><span>${esc(chunk[j])} — <span class="subtle">couldn't save</span></span>`; }
+      }
+    }
+    btn.disabled = false;
+    toast(`Added ${ok} of ${lines.length}`);
+  };
+}
+
+/* ============================================================ wear log */
+function renderWear() {
+  const root = $("#view-wear");
+  if (!gate(root)) return;
+  const wearable = enriched().filter((f) => WEARABLE.has(f.status));
+  root.innerHTML = `
+    <div class="view-head"><div><h1>Wear log</h1><div class="subtle">Track what you wear to learn what you actually reach for.</div></div>
+      ${S.canWrite ? `<button id="suggest" ${wearable.length ? "" : "disabled"}>Suggest what to wear</button>` : ""}</div>
+    <div id="suggest-out"></div>
+    ${S.canWrite ? (wearable.length ? `<div class="card" style="margin-bottom:16px"><h3 style="margin-bottom:12px">Log a wear</h3>${wearForm(null, "w")}</div>` : `<div class="card empty" style="margin-bottom:16px"><p>Add fragrances you own first. <a href="#add">Add one</a></p></div>`) : ""}
+    <div class="card"><div class="card-head"><h3>History</h3><span class="small subtle" id="wear-count"></span></div><ul class="wear-list" id="wear-history"></ul></div>`;
+  const form = $(".wear-form", root);
+  if (form) form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try { if (await submitWear(form, "w")) { toast("Wear logged"); form.reset(); $("#w-date").value = todayISO(); } }
+    catch { toast("Couldn't save the wear.", { error: true }); }
+  });
+  if ($("#suggest")) $("#suggest").onclick = () => suggest();
+  drawWearHistory();
+}
+function drawWearHistory() {
+  const list = $("#wear-history"); if (!list) return;
+  const ws = [...S.wears].sort((a, b) => String(b.worn_on).localeCompare(String(a.worn_on)) || String(b.created_at).localeCompare(String(a.created_at)));
+  $("#wear-count").textContent = `${ws.length} logged`;
+  list.innerHTML = ws.slice(0, 200).map((w) => wearItem(w)).join("") || `<li class="subtle">Nothing logged yet.</li>`;
+}
+document.addEventListener("click", async (e) => {
+  const del = e.target.closest("#view-wear [data-del-wear]");
+  if (del) { await deleteWear(del.dataset.delWear); return; }
+  const open = e.target.closest("#view-wear [data-open], #view-insights [data-open]");
+  if (open) openDetail(open.dataset.open);
+});
+function suggest() {
+  const pool = enriched().filter((f) => WEARABLE.has(f.status) && (f.sentiment ?? 0) >= 0)
+    .map((f) => ({ f, s: (f.score ?? 0.5) + Math.min((daysSince(f.last_worn) ?? 60) / 21, 2) + Math.random() * 0.6 }))
+    .sort((a, b) => b.s - a.s).slice(0, 3);
+  const out = $("#suggest-out");
+  out.innerHTML = pool.length ? `<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Today, maybe…</h3><button class="small ghost" id="shuffle">Shuffle</button></div>
+    <p class="small subtle" style="margin-top:-6px">Favourites you haven't worn lately.</p><div class="grid">${pool.map(({ f }) => card(f)).join("")}</div></div>` : `<div class="notice">Rate a few fragrances first.</div>`;
+  if ($("#shuffle")) $("#shuffle").onclick = suggest;
+  const g = $(".grid", out); if (g) g.onclick = onGridClick;
+}
+
+/* ============================================================ insights */
+function divergingChart(rows, empty) {
+  if (!rows.length) return `<p class="subtle small">${esc(empty)}</p>`;
+  const max = Math.max(...rows.map((r) => Math.abs(r.affinity)), 0.5);
+  return `<div class="legend"><span><span class="sw" style="background:var(--neg)"></span>Avoid</span><span><span class="sw" style="background:var(--pos)"></span>Love</span></div>
+  <div class="div-chart">${rows.map((r) => {
+    const pct = Math.round((Math.abs(r.affinity) / max) * 100);
+    const tip = `${r.label}: ${signed(r.affinity)} · in ${r.count} fragrance${r.count === 1 ? "" : "s"}\n` + r.fragrances.slice(0, 6).map((f) => `• ${f.name} (${f.score >= 0 ? "+" : ""}${f.score.toFixed(1)})`).join("\n");
+    return `<div class="div-row" data-tip="${esc(tip)}"><span class="lbl">${esc(r.label)} <small>×${r.count}</small></span>
+      <span class="neg-half">${r.affinity < 0 ? `<span class="bar" style="width:${pct}%"></span>` : ""}</span>
+      <span class="pos-half">${r.affinity > 0 ? `<span class="bar" style="width:${pct}%"></span>` : ""}</span><span class="val">${signed(r.affinity)}</span></div>`;
+  }).join("")}</div>`;
+}
+function columnChart(months) {
+  const max = Math.max(...months.map((m) => m.count), 1);
+  const peak = months.reduce((a, b) => (b.count > a.count ? b : a), months[0]);
+  const nm = (k) => new Date(k + "-01T00:00:00").toLocaleDateString(undefined, { month: "short" });
+  return `<div class="cols">${months.map((m) => { const h = (m.count / max) * 100;
+    return `<div class="col" data-tip="${esc(`${nm(m.month)} ${m.month.slice(0, 4)}: ${m.count} wear${m.count === 1 ? "" : "s"}`)}">${m === peak && m.count ? `<span class="top" style="bottom:calc(${h}% + 2px)">${m.count}</span>` : ""}<div class="bar" style="height:${h}%"></div></div>`; }).join("")}</div>
+    <div class="axis">${months.map((m) => `<span>${nm(m.month)}</span>`).join("")}</div>`;
+}
+const linkList = (rows, right) => (rows.length ? `<ul class="list">${rows.map((r) => `<li><span class="link" data-open="${r.id}">${esc(r.name)} <span class="subtle small">${esc(r.brand || "")}</span></span><span class="num">${right(r)}</span></li>`).join("")}</ul>` : `<p class="subtle small">Nothing yet.</p>`);
+const scoreCell = (v) => (v === null ? `<span class="subtle">—</span>` : `<span style="color:${v >= LIKE ? "var(--pos)" : v <= -LIKE ? "var(--neg)" : "var(--ink-2)"}">${signed(v)}</span>`);
+const groupTable = (title, rows) => (rows.length ? `<div class="card"><h3 style="margin-bottom:8px">${esc(title)}</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th class="r">Count</th><th class="r">Avg score</th></tr></thead><tbody>${rows.slice(0, 10).map((g) => `<tr><td>${esc(g.label)}</td><td class="r">${g.count}</td><td class="r">${scoreCell(g.avg)}</td></tr>`).join("")}</tbody></table></div></div>` : "");
+
+function renderInsights() {
+  const root = $("#view-insights");
+  if (!gate(root)) return;
+  const frags = enriched();
+  const r = buildReport(frags, S.wears);
+  const t = r.totals;
+  const noteRows = [...r.likedN.slice(0, 10), ...r.dislikedN.slice(0, 8).reverse()];
+  const accRows = [...r.likedA, ...r.dislikedA.slice().reverse()];
+  const aiOpen = $("#ai-card")?.dataset.busy === "1";
+  root.innerHTML = `
+    <div class="view-head"><div><h1>Your scent profile</h1><div class="subtle">Learned from ${r.model.scored.length} rated or worn fragrance${r.model.scored.length === 1 ? "" : "s"}</div></div></div>
+    <div class="stack">
+    <div class="card summary-card">${r.summary.map((l) => `<p>${esc(l)}</p>`).join("")}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${t.fragrances}</div><div class="k">fragrances (${t.owned} owned)</div></div>
+      <div class="kpi"><div class="v">${t.wears}</div><div class="k">wears logged</div></div>
+      <div class="kpi"><div class="v">${t.last30}</div><div class="k">wears in the last 30 days</div></div>
+      <div class="kpi"><div class="v">${t.unique90}</div><div class="k">different scents worn in 90 days</div></div>
+    </div>
+    <div class="card" id="ai-card"></div>
+    <div class="igrid">
+      <div class="card"><div class="card-head"><h3>Notes: love vs avoid</h3><span class="small subtle">hover a row for fragrances</span></div>${divergingChart(noteRows, "Rate a few fragrances to see which notes you gravitate to.")}</div>
+      <div class="card"><div class="card-head"><h3>Accords: love vs avoid</h3></div>${divergingChart(accRows, "No accord data yet.")}
+        ${r.polarizing.length ? `<h3 style="margin:18px 0 4px">Polarizing notes</h3><p class="small subtle" style="margin:0 0 8px">These show up in fragrances you love and in ones you dislike, so the rest of the composition decides.</p>${noteChips(r.polarizing.map((n) => n.label))}` : ""}</div>
+    </div>
+    <div class="igrid">
+      <div class="card"><h3>Wears per month</h3>${columnChart(r.monthly)}</div>
+      <div class="card"><h3 style="margin-bottom:10px">What you wear in each weather</h3>${r.weather.length ? `<div class="wx-grid">${r.weather.map((w) => `<div class="wx"><b>${esc(w.label)}</b> <span class="small subtle">${w.wears}×</span><div class="chips" style="margin-top:6px">${w.accords.map((a) => `<span class="chip"><span class="dot" style="background:${accordColor(a)}"></span>${esc(a)}</span>`).join("")}</div></div>`).join("")}</div>` : `<p class="subtle small">Log wears with the weather to see your habits.</p>`}</div>
+    </div>
+    <div class="igrid">
+      <div class="card"><h3 style="margin-bottom:6px">Most worn</h3>${linkList(r.mostWorn, (x) => `${x.count}×`)}</div>
+      <div class="card"><h3>Neglected bottles</h3><p class="small subtle" style="margin:0 0 6px">Owned but not worn in 90+ days</p>${linkList(r.neglected, (x) => (x.last_worn ? relDays(x.last_worn) : "never"))}</div>
+      <div class="card"><h3 style="margin-bottom:6px">Compliment getters</h3>${linkList(r.complimented, (x) => `${x.compliments}`)}</div>
+      <div class="card"><h3>Wishlist: predicted match</h3><p class="small subtle" style="margin:0 0 6px">How well each fits what you already love</p>${linkList(r.wishlist, (x) => `<span class="pill match">${x.p.match}%</span>`)}</div>
+    </div>
+    <div class="igrid">
+      ${groupTable("Families", r.families)}${groupTable("Perfumers (2+ fragrances)", r.perfumers)}${groupTable("Brands", r.brands)}
+      ${r.occasions.length ? `<div class="card"><h3 style="margin-bottom:6px">Go-tos by occasion</h3><ul class="list">${r.occasions.map((o) => `<li><b>${esc(o.occasion)}</b><span class="num wrap">${o.top.map((x) => `<span class="link" data-open="${x.id}">${esc(x.name)}</span>`).join(", ")}</span></li>`).join("")}</ul></div>` : ""}
+    </div></div>`;
+  if (!aiOpen) drawAiCard(r, frags);
+  else $("#ai-card").innerHTML = `<div class="loading"><span class="spinner"></span>Claude is writing your profile…</div>`;
+}
+
+const AI_SHAPE = `{"headline": "one line naming their scent identity", "narrative": "two short paragraphs separated by a blank line",
+ "signature_traits": ["4-6 short traits"], "recommendations": [{"name": "...", "brand": "...", "why": "one or two sentences", "key_notes": ["..."]}],
+ "avoid": [{"name": "...", "brand": "...", "why": "..."}], "collection_gaps": ["2-4 gaps"]}`;
+function drawAiCard(r, frags) {
+  const box = $("#ai-card"); if (!box) return;
+  const p = S.profile;
+  const btn = S.canWrite && S.sample ? `<button class="primary" id="ai-btn" ${r.model.ready ? "" : "disabled"}>${p ? "Regenerate" : "Write my profile"}</button>` : "";
+  const head = `<div class="card-head"><h3>AI scent profile & recommendations</h3>${btn}</div>`;
+  if (!p) {
+    box.innerHTML = head + `<p class="subtle" style="margin:0">Claude reads your statistics and collection, explains your taste in plain words, and suggests what to try next and what to skip.${r.model.ready ? "" : " Rate at least three fragrances first."}</p>`;
+  } else {
+    box.innerHTML = head + `<p class="small subtle" style="margin-top:-6px">Written ${esc(fmtDate(p.created_at))}${p.example ? " · example profile for the example collection" : ""}</p>
+      <h2 style="margin-bottom:8px">${esc(p.headline)}</h2>${String(p.narrative || "").split(/\n+/).map((x) => `<p>${esc(x)}</p>`).join("")}
+      <div class="chips" style="margin:10px 0 16px">${(p.signature_traits || []).map((x) => `<span class="chip">${esc(x)}</span>`).join("")}</div>
+      <h3 style="margin-bottom:8px">Try next</h3>
+      <div class="recs">${(p.recommendations || []).map((x) => `<div class="rec"><div class="subtle small">${esc(x.brand)}</div><div class="name">${esc(x.name)}</div><div class="small">${esc(x.why)}</div>${noteChips(x.key_notes)}${S.canWrite ? `<div><button class="small" data-lookup="${esc(`${x.brand} ${x.name}`)}">Look up & add</button></div>` : ""}</div>`).join("")}</div>
+      <div class="two-col" style="margin-top:16px">
+        <div><h3>Probably skip</h3><ul class="list">${(p.avoid || []).map((x) => `<li><span><b>${esc(x.brand)} ${esc(x.name)}</b><br><span class="small subtle">${esc(x.why)}</span></span></li>`).join("")}</ul></div>
+        <div><h3>Gaps in your collection</h3><ul class="list">${(p.collection_gaps || []).map((g) => `<li><span>${esc(g)}</span></li>`).join("")}</ul></div>
+      </div>`;
+  }
+  $$("[data-lookup]", box).forEach((b) => (b.onclick = () => { prefillValue = b.dataset.lookup; $("#view-add").dataset.ready = ""; location.hash = "add"; }));
+  const ab = $("#ai-btn", box);
+  if (ab) ab.onclick = async () => {
+    box.dataset.busy = "1";
+    box.innerHTML = `<div class="loading"><span class="spinner"></span>Claude is writing your profile… this can take a minute.</div>`;
+    const slim = (rows) => rows.map((a) => ({ label: a.label, affinity: a.affinity, count: a.count, in: a.fragrances.slice(0, 4).map((f) => `${f.brand} ${f.name}`) }));
+    const stats = { summary: r.summary, liked_notes: slim(r.likedN), disliked_notes: slim(r.dislikedN), liked_accords: slim(r.likedA), disliked_accords: slim(r.dislikedA),
+      polarizing_notes: r.polarizing.map((a) => a.label), families: r.families, perfumers: r.perfumers, weather: r.weather, occasions: r.occasions.map((o) => ({ occasion: o.occasion, top: o.top.map((x) => x.name) })),
+      most_worn: r.mostWorn.map((x) => `${x.brand} ${x.name} (${x.count}x)`), neglected: r.neglected.map((x) => `${x.brand} ${x.name}`) };
+    const coll = frags.map((f) => `- ${f.brand || "?"} – ${f.name} [${f.status}, ${f.sentiment === null || f.sentiment === undefined ? "unrated" : SENT[f.sentiment]}, worn ${f.wear_count}x] accords: ${(f.accords || []).slice(0, 4).map((a) => a.name).join(", ")}`).join("\n");
+    try {
+      const out = await S.sample.json(`You are a perfumery expert helping a collector understand their own taste. Write in second person, warm but precise, like a knowledgeable friend at a perfume counter. Ground every claim in the data below and name specific notes, accords and fragrances from it. Recommend real, currently available perfumes that are NOT already in the collection.
+
+<taste_statistics>
+${JSON.stringify(stats)}
+</taste_statistics>
+<collection>
+${coll}
+</collection>
+
+Affinity runs from about -2 (hated) to +3 (loved and worn a lot). Write a one-line headline for their scent identity; a narrative of two short paragraphs on what they love, what they avoid and any surprising patterns; 4-6 signature traits; 6 recommendations with why each fits and its key notes; 3 popular fragrances they would likely dislike and why; and 2-4 gaps in the collection (weather, occasions or styles it doesn't cover).
+
+Reply with only JSON shaped like:
+${AI_SHAPE}`, { modelTier: "complex", cache: false });
+      if (!out || !out.headline) throw { code: "invalid_json" };
+      await S.db.doc("profile/latest").set({ ...out, created_at: new Date().toISOString(), example: false });
+    } catch (e) { toast(sampleError(e), { error: true }); }
+    box.dataset.busy = "";
+    renderInsights();
+  };
+}
+
+/* ============================================================ tooltip */
+const tip = $("#tooltip");
+document.addEventListener("pointermove", (e) => {
+  const el = e.target.closest?.("[data-tip]");
+  if (!el) { tip.hidden = true; return; }
+  tip.textContent = "";
+  el.dataset.tip.split("\n").forEach((line, i) => { if (i) tip.append(document.createElement("br")); tip.append(line); });
+  tip.hidden = false;
+  const { width, height } = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + width > innerWidth - 8) x = e.clientX - width - 14;
+  if (y + height > innerHeight - 8) y = e.clientY - height - 14;
+  tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${Math.max(8, y)}px`;
+});
+
+/* ============================================================ boot */
+route();
+(async () => {
+  const [db, user, sample] = await Promise.all([use("db"), use("user"), use("sample")]);
+  S.sample = sample;
+  if (!db) { S.status = "nodb"; route(); return; }
+  S.db = db;
+  let can = null;
+  try { can = user ? ((await user.isOwner()) || (await user.can("data.write"))) : null; } catch { can = null; }
+  S.canWrite = can !== false;
+  const fail = () => { S.status = "nodb"; route(); };
+  db.collection("fragrances").onSnapshot((snap) => {
+    S.fragrances = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    S.loaded.f = true; maybeReady();
+  }, fail);
+  db.collection("wears").onSnapshot((snap) => {
+    S.wears = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    S.loaded.w = true; maybeReady();
+  }, fail);
+  db.doc("profile/latest").onSnapshot((d) => { S.profile = d.exists ? d.data() : null; if (S.status === "ready" && current() === "insights" && $("#ai-card")?.dataset.busy !== "1") renderInsights(); }, () => {});
+  function maybeReady() {
+    if (S.status !== "ready" && S.loaded.f && S.loaded.w) { S.status = "ready"; route(); return; }
+    if (S.status === "ready") { onData(); if (detailId && !$("#detail-body #personal:focus-within") && !$("#detail-body .wear-form:focus-within") && !$("#edit-form")) { const f = findFrag(detailId); if (f) { $("#detail-body").innerHTML = detailView(f); wireDetail(f); } } }
+  }
+})();
+</script>
