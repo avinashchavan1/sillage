@@ -1,8 +1,10 @@
 """Fragrantica provider: find a perfume page through a web search engine, fetch it, parse it.
 
-Fragrantica has no public API and sits behind Cloudflare, so:
+Fragrantica has no public API, so:
   * the page URL is discovered via DuckDuckGo / Bing (`site:fragrantica.com/perfume ...`),
-  * pages are fetched with `curl_cffi` (browser TLS fingerprint) when installed, else httpx,
+  * pages are fetched with a plain HTTP client that identifies itself honestly. If a site refuses
+    (bot protection, rate limits) we accept that and the lookup falls back to Claude web research;
+    we never try to get around a block,
   * parsing leans on the meta description first (very stable wording), then the HTML pyramid
     and accord bars, so a layout change degrades the result instead of breaking it.
 """
@@ -19,10 +21,7 @@ from bs4 import BeautifulSoup
 from ..models import Accord, Alternative, FragranceDetails
 from ..text import fold, infer_concentration, match_score, split_list
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-)
+USER_AGENT = "Sillage/2.0 (personal fragrance catalogue; python-httpx)"
 HEADERS = {
     "User-Agent": USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -39,26 +38,20 @@ class FragranticaError(Exception):
 
 
 class BlockedError(FragranticaError):
-    """Cloudflare (or a search engine) refused us."""
+    """The site refused the request (bot protection or rate limiting). Not retried or worked around."""
 
 
 # ---------------------------------------------------------------- HTTP
 
 
 def _get(url: str, params: Optional[dict] = None, data: Optional[dict] = None) -> str:
+    import httpx
+
     try:
-        from curl_cffi import requests as creq  # type: ignore
-
-        method = "POST" if data else "GET"
-        resp = creq.request(method, url, params=params, data=data, headers=HEADERS, impersonate="chrome", timeout=TIMEOUT)
-        status, text = resp.status_code, resp.text
-    except ImportError:
-        import httpx
-
         with httpx.Client(headers=HEADERS, timeout=TIMEOUT, follow_redirects=True) as client:
             resp = client.post(url, data=data) if data else client.get(url, params=params)
             status, text = resp.status_code, resp.text
-    except Exception as exc:  # network errors from either client
+    except httpx.HTTPError as exc:
         raise FragranticaError(f"Could not reach {urlparse(url).netloc}: {exc}") from exc
 
     if status in (403, 429, 503) or "cf-challenge" in text or "<title>Just a moment" in text:

@@ -94,14 +94,14 @@ SILLAGE_DB=data/demo.db ./run.sh
 
 The lookup tries two sources in order:
 
-1. **Fragrantica, directly.** It finds the perfume's page through DuckDuckGo (or Bing as a fallback) with `site:fragrantica.com/perfume <your text>`. When several results come back, it ranks them so the original beats its flankers unless you named the flanker. It then parses the page. Parsing starts from the meta description, whose wording Fragrantica rarely changes. It then reads the HTML notes pyramid and the accord bars, which give the accord strengths. Pages are fetched with `curl_cffi`, which mimics a real Chrome browser, so Fragrantica's Cloudflare protection blocks it less often.
+1. **Fragrantica, directly.** It finds the perfume's page through DuckDuckGo (or Bing as a fallback) with `site:fragrantica.com/perfume <your text>`. When several results come back, it ranks them so the original beats its flankers unless you named the flanker. It then parses the page. Parsing starts from the meta description, whose wording Fragrantica rarely changes. It then reads the HTML notes pyramid and the accord bars, which give the accord strengths. Requests identify themselves honestly as Sillage. If Fragrantica's bot protection refuses one, Sillage accepts that and falls back to step 2 rather than trying to get around it.
 2. **Claude web research.** This needs `ANTHROPIC_API_KEY`. Claude searches the web, reads the Fragrantica page (or Parfumo, Basenotes or the brand's site if Fragrantica isn't reachable), and returns the data in a strict schema. It handles typos, nicknames and ambiguous names, and explains how it read your query, e.g. *"Read 'savage' as Dior Sauvage EDT (2015); did you mean the Elixir?"*. Claude is also used when the direct search returns a poor match.
 
 Before you save, you see a preview showing the source link, "Not the one?" alternatives, and a duplicate warning. You can correct any field, or enter a fragrance by hand. **Refresh from web** re-fetches the notes later and keeps your ratings. **Add many at once** takes a list, one fragrance per line, which is handy when you're entering a big collection.
 
 You can change the source order with `SILLAGE_LOOKUP_ORDER`, e.g. `claude,fragrantica` or `fragrantica`.
 
-> Fragrantica has no public API and actively blocks scrapers. If direct lookups start failing, either it changed its layout or your IP got rate-limited. With an API key set, the Claude path keeps working, and pasting a Fragrantica URL still works when search is blocked.
+> Fragrantica has no public API and may refuse automated requests. When it does, lookups fall back to Claude web research (with an API key set), and you can always enter a fragrance by hand.
 
 ## How the taste model works
 
