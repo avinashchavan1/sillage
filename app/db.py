@@ -251,6 +251,18 @@ def _hydrate(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> list[dict]:
     return [items[r["id"]] for r in rows]
 
 
+def backfill_images(conn: sqlite3.Connection, image_for) -> int:
+    """Give fragrances saved before images were tracked their Fragrantica photo."""
+    rows = conn.execute("SELECT id, source_url FROM fragrances WHERE (image_url IS NULL OR image_url = '') AND source_url IS NOT NULL").fetchall()
+    n = 0
+    for r in rows:
+        if url := image_for(r["source_url"]):
+            conn.execute("UPDATE fragrances SET image_url = ? WHERE id = ?", (url, r["id"]))
+            n += 1
+    conn.commit()
+    return n
+
+
 def list_fragrances(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("SELECT * FROM fragrances ORDER BY created_at DESC, id DESC").fetchall()
     return _hydrate(conn, rows)

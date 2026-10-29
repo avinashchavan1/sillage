@@ -431,3 +431,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
   .ai-layout { grid-template-columns: 1fr; }
   .chat-card { position: static; height: 70vh; }
 }
+
+/* ---------- bottle artwork & photos */
+.art-tile { width: 100%; height: 100%; display: grid; place-items: center; }
+.bottle-art { height: 88%; width: auto; max-width: 70%; filter: drop-shadow(0 4px 10px rgb(0 0 0 / 12%)); }
+.frag .thumb img { background: #fff; }
+.hero-art { display: grid; gap: 8px; align-content: start; }
+.photo-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.photo-actions .btn { cursor: pointer; }

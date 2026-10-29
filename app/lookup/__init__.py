@@ -27,7 +27,14 @@ def _order() -> list[str]:
 
 
 def lookup(query: str) -> LookupResult:
-    query = query.strip()
+    result = _lookup(query.strip())
+    d = result.details
+    if not d.image_url:  # e.g. a Claude lookup that read the Fragrantica page but returned no image
+        d.image_url = fragrantica.image_for(d.source_url)
+    return result
+
+
+def _lookup(query: str) -> LookupResult:
     is_url = fragrantica.canonical_url(query) is not None
     order = _order()
     errors: list[str] = []

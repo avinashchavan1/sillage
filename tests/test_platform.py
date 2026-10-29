@@ -204,3 +204,52 @@ def test_assistant_stops_on_truncated_tool_call(seeded, monkeypatch):
 
 def test_chat_endpoint_requires_ai(seeded):
     assert seeded.post("/api/chat", json={"messages": [{"role": "user", "content": "hi"}]}).status_code == 400
+
+
+# ---------------------------------------------------------------- images
+
+PNG = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+       b"\x00\x00\x00\rIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe\xa7\x35\x81\x84\x00\x00\x00\x00IEND\xaeB`\x82")
+
+
+def test_image_from_fragrantica_id():
+    assert fragrantica.image_for("https://www.fragrantica.com/perfume/Dior/Sauvage-31861.html") == \
+        "https://fimgs.net/mdimg/perfume/375x500.31861.jpg"
+    assert fragrantica.image_for(None) is None and fragrantica.image_for("https://example.com") is None
+
+
+def test_lookup_always_sets_image(monkeypatch):
+    from app import lookup as lookup_pkg
+
+    d = details("Aventus", "Creed", ["fruity"], ["Pineapple"])
+    d.source_url = "https://www.fragrantica.com/perfume/Creed/Aventus-9828.html"
+    monkeypatch.setattr(fragrantica, "lookup", lambda q: (d, []))
+    assert lookup_pkg.lookup("creed aventus").details.image_url.endswith("375x500.9828.jpg")
+
+
+def test_photo_upload_and_restore(seeded):
+    import base64
+
+    fid = 1
+    seeded.patch(f"/api/fragrances/{fid}", json={"source_url": "https://www.fragrantica.com/perfume/Tom-Ford/Tobacco-Vanille-1825.html"})
+    url = "data:image/png;base64," + base64.b64encode(PNG).decode()
+    item = seeded.post(f"/api/fragrances/{fid}/photo", json={"data_url": url}).json()
+    assert item["image_url"].startswith("/media/")
+    served = seeded.get(item["image_url"], headers={"Authorization": ""})
+    assert served.status_code == 200 and served.content == PNG  # <img> works without the key
+    assert seeded.get("/media/../api_key").status_code == 404
+    bad = "data:image/png;base64," + base64.b64encode(b"<svg onload=alert(1)>").decode()
+    assert seeded.post(f"/api/fragrances/{fid}/photo", json={"data_url": bad}).status_code == 422
+    assert seeded.post(f"/api/fragrances/{fid}/photo", json={"data_url": "data:text/html;base64,PGI+"}).status_code == 422
+    restored = seeded.delete(f"/api/fragrances/{fid}/photo").json()
+    assert restored["image_url"].endswith("375x500.1825.jpg")  # official image comes back
+    assert seeded.get(item["image_url"]).status_code == 404  # file removed
+
+
+def test_backfill_images(tmp_path):
+    conn = db.connect(tmp_path / "b.db")
+    db.insert_fragrance(conn, {"name": "Old", "brand": "X", "source_url": "https://www.fragrantica.com/perfume/X/Old-42.html"})
+    db.insert_fragrance(conn, {"name": "Manual", "brand": "Y"})
+    assert db.backfill_images(conn, fragrantica.image_for) == 1
+    images = {f["name"]: f["image_url"] for f in db.list_fragrances(conn)}
+    assert images == {"Old": "https://fimgs.net/mdimg/perfume/375x500.42.jpg", "Manual": None}

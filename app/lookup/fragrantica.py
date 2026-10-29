@@ -78,6 +78,12 @@ def canonical_url(url: str) -> Optional[str]:
     return f"https://www.fragrantica.com/perfume/{m.group(1)}/{m.group(2)}-{m.group(3)}.html"
 
 
+def image_for(url: Optional[str]) -> Optional[str]:
+    """Fragrantica's bottle photo for a perfume page (their image CDN is keyed by the page id)."""
+    m = PERFUME_URL.search(url or "")
+    return f"https://fimgs.net/mdimg/perfume/375x500.{m.group(3)}.jpg" if m else None
+
+
 def label_from_url(url: str) -> str:
     m = PERFUME_URL.search(url)
     if not m:
@@ -290,7 +296,7 @@ def parse_perfume_page(html: str, url: Optional[str] = None) -> FragranceDetails
     img = _meta(soup, "og:image")
     if not img and (tag := soup.select_one('img[itemprop="image"]')):
         img = tag.get("src")
-    data["image_url"] = img or (ld.get("image") if isinstance(ld.get("image"), str) else None)
+    data["image_url"] = img or (ld.get("image") if isinstance(ld.get("image"), str) else None) or image_for(url)
 
     data["accords"] = parse_accords(soup)
     data["description"] = desc or None
