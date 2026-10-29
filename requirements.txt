@@ -1,0 +1,11 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+beautifulsoup4>=4.12
+lxml>=5.0
+httpx>=0.27
+# Browser-like TLS fingerprint: makes Fragrantica (Cloudflare) far less likely to block lookups.
+curl_cffi>=0.7
+# Optional AI features (smart lookups + scent profile). Needs ANTHROPIC_API_KEY.
+anthropic>=2.3
+# tests
+pytest>=8
