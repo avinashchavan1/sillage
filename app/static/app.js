@@ -1344,6 +1344,15 @@ async function renderConnect() {
         <ul class="list tool-list">${c.tools.map((t) => `<li><span><code>${esc(t.name)}</code><br><span class="small subtle">${esc(t.summary)}</span></span><span class="pill ${t.read_only ? "" : "write"}">${t.read_only ? "read" : "write"}</span></li>`).join("")}</ul>
       </div>
     </div>
+    <div class="card" style="margin-bottom:16px"><h3>Your data</h3>
+      <p class="small subtle">The server also keeps a daily backup of the last 14 days in <code>data/backups</code>. Download a copy now and then to keep one off the server too.</p>
+      <div class="row">
+        <button id="export-json">Export everything (JSON)</button>
+        <button id="download-backup">Download database backup</button>
+        <label class="btn" for="import-file">Import a Sillage export…</label><input id="import-file" type="file" accept="application/json,.json" hidden>
+      </div>
+      <p class="small subtle" style="margin:8px 0 0">Import merges: fragrances you already have are matched, not duplicated, so it's safe to import the same file twice. Exports from the claude.ai version of Sillage work too.</p>
+    </div>
     <div class="stack-gap">
       <div class="card"><h3>Claude Code</h3>${copyBlock("Terminal", `claude mcp add --transport http sillage ${c.mcp_url} --header "Authorization: Bearer ${k}"`)}</div>
       <div class="card"><h3>Claude Desktop, Cursor and other desktop apps</h3>${copyBlock("Add to the app's MCP config (claude_desktop_config.json for Claude Desktop)", desktop, "Runs Sillage's MCP server locally over stdio against the same database. No key needed, because it never leaves your computer.")}</div>
@@ -1355,6 +1364,23 @@ async function renderConnect() {
         ${copyBlock("Publish a result into the app", `curl -s ${c.base_url}/api/feed -H "Authorization: Bearer ${k}" -H "X-Client-Name: My script" -H "Content-Type: application/json" -d '{"title": "Top notes", "summary": "Vanilla and tonka lead.", "chart": {"type": "bar", "labels": ["Vanilla", "Tonka"], "values": [1.9, 1.7]}}'`)}
       </div>
     </div>`;
+  const save = async (path, name) => {
+    const res = await fetch(path, { headers: authHeaders() });
+    if (!res.ok) { toast("Download failed", { error: true }); return; }
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: name });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+  $("#export-json").onclick = () => save("/api/export", `sillage-export-${todayISO()}.json`);
+  $("#download-backup").onclick = () => save("/api/backup", `sillage-${todayISO()}.db`);
+  $("#import-file").onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const r = await api("/api/import", { method: "POST", body: await file.text() });
+      toast(`Imported: ${r.fragrances_added} new fragrances (${r.fragrances_matched} already here), ${r.wears_added} wears, ${r.insights_added} insights${r.errors.length ? `, ${r.errors.length} skipped` : ""}`, { timeout: 9000 });
+      state.insights = null;
+    } catch (err) { toast(`Import failed: ${err.message}`, { error: true }); }
+    e.target.value = "";
+  };
   $("#key-show").onclick = (e) => { const shown = e.target.textContent === "Hide"; $("#key-text").textContent = shown ? masked : k; e.target.textContent = shown ? "Show" : "Hide"; };
   $$("[data-copy-text]", root).forEach((b) => (b.onclick = () => copyText(b.dataset.copyText)));
 }

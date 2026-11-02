@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+        env:
+          SILLAGE_AI: "off"
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image and smoke-test it
+        run: |
+          docker build -t sillage .
+          docker run -d --name sillage -p 8000:8000 -e SILLAGE_API_KEY=ci-key sillage
+          for i in $(seq 1 30); do curl -sf localhost:8000/api/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8000/api/fragrances)" = 401
+          curl -sf -H "Authorization: Bearer ci-key" localhost:8000/api/fragrances

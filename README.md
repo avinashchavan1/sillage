@@ -55,18 +55,46 @@ claude mcp add --transport http sillage http://127.0.0.1:8000/mcp --header "Auth
 Claude Desktop and Cursor run the local stdio server (`python -m app.mcp_server`); the Connect tab gives you the exact
 JSON to paste. claude.ai and ChatGPT connectors and Custom GPT Actions need a public HTTPS URL (see Deploy).
 
-## Deploy (for web AI apps)
+## Deploy
+
+Sillage runs anywhere that runs Docker. Everything it stores (the database, your photos, the API key and
+backups) lives in `/data`, so mount persistent storage there or your data is wiped on every restart.
+
+**Fly.io** (about five minutes; `fly.toml` already mounts a persistent volume at `/data`):
 
 ```bash
-fly launch --no-deploy --copy-config
+fly launch --name sillage-<yourname> --no-deploy --copy-config
 fly volumes create sillage_data --size 1
-fly secrets set ANTHROPIC_API_KEY=sk-ant-... SILLAGE_PUBLIC_URL=https://<your-app>.fly.dev SILLAGE_ALLOWED_HOSTS=<your-app>.fly.dev
+fly secrets set ANTHROPIC_API_KEY=sk-ant-... \
+  SILLAGE_PUBLIC_URL=https://sillage-<yourname>.fly.dev SILLAGE_ALLOWED_HOSTS=sillage-<yourname>.fly.dev
 fly deploy
-fly logs   # the API key is printed at startup
+fly logs   # the API key is printed at startup; you'll paste it into the app once
 ```
 
-The `Dockerfile` also works on any container host (Render, Railway, a VPS). Mount a volume at `/data`, and set
-`SILLAGE_PUBLIC_URL` and `SILLAGE_ALLOWED_HOSTS`.
+**Render, Railway or a VPS:** build the `Dockerfile`, attach a persistent disk at `/data`, and set the same three
+environment variables.
+
+### Moving your data in
+
+1. In the claude.ai version of Sillage, open **Connect → Export my data**.
+2. In your hosted Sillage, open **Connect → Import a Sillage export…** and choose the file.
+
+Import merges your data in:
+- Fragrances you already have are matched rather than duplicated, so importing twice is harmless.
+- Wears and AI insights come across too.
+- Fragrantica photos are rebuilt from each fragrance's page.
+- Photos you uploaded in the claude.ai version don't carry over, so add them again with **Add photo**.
+
+From a terminal: `python -m scripts.import_json sillage-export.json`.
+
+### Backups
+
+- The server writes a consistent copy of the database to `/data/backups` every day and keeps the last 14 days.
+  These are on the same disk as the data, so they protect against mistakes, not against losing the disk.
+- **Connect → Download database backup** (or `GET /api/backup`) gives you a copy to keep somewhere else.
+- **Connect → Export everything** (or `GET /api/export`) gives you the same data as JSON.
+
+CI (`.github/workflows/ci.yml`) runs the tests on every push and builds the Docker image and smoke-tests it.
 
 ## Run it
 
@@ -128,6 +156,7 @@ You can change the source order with `SILLAGE_LOOKUP_ORDER`, e.g. `claude,fragra
 | `SILLAGE_API_KEY` | generated into `data/api_key` | Key for `/api` and `/mcp` |
 | `SILLAGE_PUBLIC_URL` | — | Public HTTPS base URL once deployed (turns off key auto-pickup) |
 | `SILLAGE_ALLOWED_HOSTS` | — | Extra Host names the MCP endpoint accepts, comma-separated |
+| `SILLAGE_BACKUPS` | `on` | `off` disables the daily database backup |
 
 ## Development
 

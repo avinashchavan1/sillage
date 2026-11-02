@@ -139,7 +139,7 @@ textarea { resize: vertical; min-height: 70px; }
 @media (prefers-reduced-motion: reduce) { .frag { transition: none; } .frag:hover { transform: none; } }
 .label-art { aspect-ratio: 5 / 3; position: relative; display: grid; place-items: center; overflow: hidden; }
 .label-art .bottle-art { height: 88%; width: auto; max-width: 70%; filter: drop-shadow(0 4px 10px rgb(0 0 0 / 12%)); }
-.label-art img.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.label-art img.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 8px; background: #fff; }
 .hero-art { display: grid; gap: 8px; align-content: start; }
 .photo-actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .photo-actions .btn { cursor: pointer; }
@@ -1665,6 +1665,9 @@ function renderConnect() {
   root.innerHTML = `
     <div class="view-head"><div><h1>Connect your AI</h1><div class="subtle">Your collection is data other AI can analyse, and the results come back into this app.</div></div></div>
     <div class="stack">
+      ${S.downloads ? `<div class="card"><h3>Your data</h3>
+        <p class="small subtle">Download your whole collection, wear log and AI insights as one file. Import it into the self-hosted Sillage server (Connect → Import) to move everything there.</p>
+        <button class="primary" id="export-data">Export my data</button></div>` : ""}
       <div class="card"><h3>Claude, from any conversation</h3>
         <p class="small subtle">Claude conversations with artifact tools (Claude Code, claude.ai) can read this collection and publish findings into your AI insights feed, as you. Paste this:</p>
         <div class="snippet"><div class="row between"><b class="small">Prompt</b><button class="small" id="copy-prompt">Copy</button></div><pre id="prompt-text">${esc(CLAUDE_PROMPT)}</pre></div></div>
@@ -1672,6 +1675,15 @@ function renderConnect() {
         <p class="small subtle" style="margin:0">For those, run the Sillage server (the Python app in this project). It serves the same collection as an <b>MCP server</b> (<code>/mcp</code>) and a <b>REST API</b> with OpenAPI docs (<code>/docs</code>), with 14 tools including read-only SQL. Its own Connect page gives copy-paste setup for Claude Desktop, Claude Code, claude.ai and ChatGPT connectors, Custom GPTs and curl. Deploying it to a public URL takes about four commands (see the README).</p></div>
       <div class="card"><h3>What the assistant here can do</h3><ul class="list">${aiTools(() => () => {}).map((t) => `<li><span><code>${esc(t.name)}</code><br><span class="small subtle">${esc(t.description.split(". ")[0])}</span></span><span class="pill">${["publish_insight", "log_wear"].includes(t.name) ? "write" : "read"}</span></li>`).join("")}</ul></div>
     </div>`;
+  const ex = $("#export-data");
+  if (ex) ex.onclick = async () => {
+    const payload = { format: "sillage-export", version: 1, exported_at: new Date().toISOString(), source: "Sillage on claude.ai",
+      fragrances: S.fragrances, wears: S.wears, insights: S.insightsFeed };
+    try {
+      const r = await S.downloads.save({ filename: `sillage-export-${todayISO()}.json`, data: JSON.stringify(payload, null, 1) });
+      if (r?.status === "saved") toast("Export saved");
+    } catch (e) { if (e?.code !== "cancelled") toast("Couldn't save the export.", { error: true }); }
+  };
   $("#copy-prompt").onclick = () => { const p = navigator.clipboard?.writeText(CLAUDE_PROMPT) || Promise.reject(); p.then(() => toast("Copied"), () => { const r = document.createRange(); r.selectNodeContents($("#prompt-text")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Selected. Press Ctrl/Cmd+C to copy"); }); };
 }
 
@@ -1693,9 +1705,10 @@ document.addEventListener("pointermove", (e) => {
 /* ============================================================ boot */
 route();
 (async () => {
-  const [db, user, sample, assets] = await Promise.all([use("db"), use("user"), use("sample"), use("assets")]);
+  const [db, user, sample, assets, downloads] = await Promise.all([use("db"), use("user"), use("sample"), use("assets"), use("downloads")]);
   S.sample = sample;
   S.assets = assets;
+  S.downloads = downloads;
   if (!db) { S.status = "nodb"; route(); return; }
   S.db = db;
   let can = null;
