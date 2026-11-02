@@ -71,8 +71,17 @@ fly deploy
 fly logs   # the API key is printed at startup; you'll paste it into the app once
 ```
 
-**Render, Railway or a VPS:** build the `Dockerfile`, attach a persistent disk at `/data`, and set the same three
-environment variables.
+**Render** (`render.yaml` is a ready Blueprint):
+
+1. In the Render dashboard, choose **New → Blueprint** and pick this repository.
+2. Render reads `render.yaml`. It sets up a Docker web service on a paid Starter instance with a 1 GB persistent disk
+   at `/data`. Free instances can't attach a disk, so their data would be wiped on every restart.
+3. When asked, paste your `ANTHROPIC_API_KEY`. Render generates `SILLAGE_API_KEY` itself, and Sillage picks up its
+   public URL from Render automatically.
+4. Once it's live, copy `SILLAGE_API_KEY` from the service's **Environment** tab and paste it into the app.
+
+**Railway or a VPS:** build the `Dockerfile`, attach a persistent disk at `/data`, and set
+`ANTHROPIC_API_KEY`, `SILLAGE_PUBLIC_URL` and `SILLAGE_ALLOWED_HOSTS`.
 
 ### Moving your data in
 

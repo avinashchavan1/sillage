@@ -30,7 +30,8 @@ from .models import FragranceCreate, FragranceUpdate, LookupRequest, LookupResul
 from .recommend import similar
 
 STATIC = Path(__file__).parent / "static"
-PUBLIC_URL = os.environ.get("SILLAGE_PUBLIC_URL", "").rstrip("/")
+# Render provides RENDER_EXTERNAL_URL automatically, so a Render deploy needs no URL setting
+PUBLIC_URL = (os.environ.get("SILLAGE_PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
 
 class _MCPMount:
     """ASGI slot for the MCP app; a fresh server is built per app lifespan (its session manager runs once)."""

@@ -317,3 +317,19 @@ def test_backups(seeded, tmp_path):
     assert len(db.list_fragrances(copy)) == 3  # a real, consistent database
     resp = seeded.get("/api/backup")
     assert resp.status_code == 200 and resp.content[:15] == b"SQLite format 3"
+
+
+def test_render_env_sets_public_url_and_hosts(monkeypatch):
+    import importlib
+
+    from app import mcp_server
+
+    monkeypatch.setenv("RENDER_EXTERNAL_HOSTNAME", "sillage-x.onrender.com")
+    app_ = mcp_server.http_app(mcp_server.build_server())
+    assert app_ is not None
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://sillage-x.onrender.com")
+    import app.main as main
+
+    assert importlib.reload(main).PUBLIC_URL == "https://sillage-x.onrender.com"
+    monkeypatch.delenv("RENDER_EXTERNAL_URL")
+    importlib.reload(main)

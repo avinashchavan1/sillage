@@ -1,0 +1,17 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repository.
+# Needs a paid instance: only paid services can attach the persistent disk that keeps your data.
+services:
+  - type: web
+    name: sillage
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: sillage-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # Render asks you for it when you create the Blueprint
+      - key: SILLAGE_API_KEY
+        generateValue: true  # your Sillage key; copy it from the service's Environment tab
