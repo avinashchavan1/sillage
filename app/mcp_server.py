@@ -77,7 +77,8 @@ def _with_caller(fn):
 
 
 def http_app(server: MCPServer):
-    hosts = [h.strip() for h in os.environ.get("SILLAGE_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    raw = ",".join(filter(None, [os.environ.get("SILLAGE_ALLOWED_HOSTS"), os.environ.get("RENDER_EXTERNAL_HOSTNAME")]))
+    hosts = [h.strip() for h in raw.split(",") if h.strip()]
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=["127.0.0.1:*", "localhost:*", "127.0.0.1", "localhost", "testserver", *hosts],
