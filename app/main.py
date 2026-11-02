@@ -6,6 +6,7 @@ read the collection, run analyses and publish results back into the app. All /ap
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import contextlib
 import json
@@ -14,6 +15,7 @@ import re
 import secrets
 import sqlite3
 from pathlib import Path
+from datetime import datetime, timezone
 from typing import Any, Iterator, Optional
 
 from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Request
@@ -22,7 +24,7 @@ from fastapi.security import HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import ai_profile, assistant, auth, claude_client, db, lookup, mcp_server, tools
+from . import ai_profile, assistant, auth, claude_client, db, lookup, mcp_server, portability, tools
 from .insights import TasteModel, build_report
 from .models import FragranceCreate, FragranceUpdate, LookupRequest, LookupResult, QuickAdd, WearCreate
 from .recommend import similar
@@ -55,11 +57,18 @@ async def lifespan(_app: FastAPI):
         db.backfill_images(conn, lookup.fragrantica.image_for)
     finally:
         conn.close()
+    backups = None
+    if os.environ.get("SILLAGE_BACKUPS", "on").lower() not in ("0", "off", "false", "no"):
+        backups = asyncio.create_task(portability.backup_loop())
     server = mcp_server.build_server()
     mcp_mount.app = mcp_server.http_app(server)
-    async with server.session_manager.run():
-        yield
-    mcp_mount.app = None
+    try:
+        async with server.session_manager.run():
+            yield
+    finally:
+        mcp_mount.app = None
+        if backups:
+            backups.cancel()
 
 
 app = FastAPI(
@@ -332,7 +341,32 @@ def generate_ai_profile(conn: sqlite3.Connection = Depends(get_db)):
 
 @api.get("/export")
 def export(conn: sqlite3.Connection = Depends(get_db)):
-    return {"fragrances": db.list_fragrances(conn), "wears": db.list_wears(conn, limit=1000000)}
+    """Everything as JSON (fragrances, wears, insights). Feed it back to /api/import here or on another server."""
+    return portability.export_all(conn)
+
+
+@api.post("/import")
+def import_data(payload: dict[str, Any] = Body(...), conn: sqlite3.Connection = Depends(get_db)):
+    """Merge a Sillage export (from this server or the hosted claude.ai app). Safe to repeat."""
+    try:
+        return portability.import_all(conn, payload)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
+
+@api.get("/backup")
+def download_backup():
+    """A consistent copy of the SQLite database, for safekeeping off the server."""
+    import shutil
+    import tempfile
+
+    from starlette.background import BackgroundTask
+
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
+    tmp = Path(tempfile.mkdtemp())
+    path = portability.backup_now(tmp, keep=0, stamp=stamp)
+    return FileResponse(path, media_type="application/vnd.sqlite3", filename=f"sillage-{stamp}.db",
+                        background=BackgroundTask(shutil.rmtree, tmp, ignore_errors=True))
 
 
 # ---------------------------------------------------------------- AI platform

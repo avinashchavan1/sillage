@@ -253,3 +253,67 @@ def test_backfill_images(tmp_path):
     assert db.backfill_images(conn, fragrantica.image_for) == 1
     images = {f["name"]: f["image_url"] for f in db.list_fragrances(conn)}
     assert images == {"Old": "https://fimgs.net/mdimg/perfume/375x500.42.jpg", "Manual": None}
+
+
+# ---------------------------------------------------------------- export / import / backups
+
+HOSTED_EXPORT = {  # shape produced by the hosted claude.ai app's Export button
+    "format": "sillage-export", "version": 1,
+    "fragrances": [
+        {"id": "insvpj2dnpgtrfm2vdb8", "name": "Hawas for Him", "brand": "Rasasi", "year": 2015, "status": "owned", "sentiment": 1,
+         "accords": [{"name": "fresh spicy", "strength": 1}], "top_notes": ["Apple"], "photo_id": "c27da4edafe67d5b9344315aed151e31",
+         "source_url": "https://www.fragrantica.com/perfume/Rasasi/Hawas-for-Him-46890.html", "created_at": "2026-10-29T14:46:25.381Z"},
+        {"id": "ex-grand", "name": "Grand Soir", "brand": "MFK", "status": "owned", "sentiment": 2, "accords": [{"name": "amber", "strength": 1}]},
+        {"id": "bad", "name": "Broken", "brand": "X", "sentiment": 7},
+    ],
+    "wears": [
+        {"fragrance_id": "insvpj2dnpgtrfm2vdb8", "worn_on": "2026-10-30", "occasion": "Work", "enjoyment": 2, "compliments": 1},
+        {"fragrance_id": "missing", "worn_on": "2026-10-30"},
+    ],
+    "insights": [{"title": "Fresh picks", "summary": "Hawas suits hot days.", "chart": {"type": "bar", "labels": ["Hawas"], "values": [1]},
+                  "fragrance_ids": ["insvpj2dnpgtrfm2vdb8"], "source": "Claude Code", "created_at": "2026-10-29T14:30:00Z"}],
+}
+
+
+def test_import_merges_and_is_idempotent(seeded):
+    r = seeded.post("/api/import", json=HOSTED_EXPORT).json()
+    assert (r["fragrances_added"], r["fragrances_matched"], r["wears_added"], r["wears_skipped"], r["insights_added"]) == (1, 1, 1, 1, 1)
+    assert len(r["errors"]) == 1 and "Broken" in r["errors"][0]
+    hawas = next(f for f in seeded.get("/api/fragrances").json() if f["name"] == "Hawas for Him")
+    assert hawas["image_url"].endswith("375x500.46890.jpg")  # hosted photo can't move; Fragrantica's is rebuilt
+    assert hawas["created_at"] == "2026-10-29 14:46:25" and hawas["wear_count"] == 1
+    feed = seeded.get("/api/feed").json()
+    assert feed[0]["fragrance_ids"] == [hawas["id"]] and feed[0]["source"] == "Claude Code"
+    again = seeded.post("/api/import", json=HOSTED_EXPORT).json()
+    assert (again["fragrances_added"], again["wears_added"], again["insights_added"]) == (0, 0, 0)
+    assert seeded.post("/api/import", json={"nope": 1}).status_code == 422
+
+
+def test_export_roundtrip(seeded, tmp_path, monkeypatch):
+    exported = seeded.get("/api/export").json()
+    assert exported["format"] == "sillage-export" and len(exported["fragrances"]) == 3 and len(exported["wears"]) == 1
+    conn = db.connect(tmp_path / "fresh.db")
+    from app import portability
+
+    report = portability.import_all(conn, exported)
+    assert report["fragrances_added"] == 3 and report["wears_added"] == 1 and not report["errors"]
+    assert {f["name"] for f in db.list_fragrances(conn)} == {f["name"] for f in exported["fragrances"]}
+
+
+def test_backups(seeded, tmp_path):
+    from app import portability
+
+    for _ in range(50):  # the server backs up on startup (in a background task)
+        if list((tmp_path / "backups").glob("sillage-*.db")):
+            break
+        time.sleep(0.05)
+    assert list((tmp_path / "backups").glob("sillage-*.db"))
+    dest = tmp_path / "manual"
+    for day in ("2026-10-01", "2026-10-02", "2026-10-03"):
+        portability.backup_now(dest, keep=2, stamp=day)
+    files = sorted(p.name for p in dest.glob("*.db"))
+    assert files == ["sillage-2026-10-02.db", "sillage-2026-10-03.db"]
+    copy = db.connect(dest / files[-1])
+    assert len(db.list_fragrances(copy)) == 3  # a real, consistent database
+    resp = seeded.get("/api/backup")
+    assert resp.status_code == 200 and resp.content[:15] == b"SQLite format 3"
